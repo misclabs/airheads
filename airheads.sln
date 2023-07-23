@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.6.33829.357
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "hiopencv", "hiopencv\hiopencv.vcxproj", "{94EA3E8E-999E-45AC-AC3F-011D1B70F541}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{94EA3E8E-999E-45AC-AC3F-011D1B70F541}.Debug|x64.ActiveCfg = Debug|x64
+		{94EA3E8E-999E-45AC-AC3F-011D1B70F541}.Debug|x64.Build.0 = Debug|x64
+		{94EA3E8E-999E-45AC-AC3F-011D1B70F541}.Release|x64.ActiveCfg = Release|x64
+		{94EA3E8E-999E-45AC-AC3F-011D1B70F541}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {CA5E9649-22B3-4165-B102-7CDE4834A270}
+	EndGlobalSection
+EndGlobal

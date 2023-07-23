@@ -30,3 +30,16 @@
 *.exe
 *.out
 *.app
+
+# User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+/.vs/
+
+# Build results
+/x64/
+/hiopencv/x64/
