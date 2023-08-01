@@ -1,4 +1,4 @@
-#include "project_settings.h"
+#include "project_conf.h"
 
 namespace Conf {
 
