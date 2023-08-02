@@ -32,8 +32,8 @@ elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
 		src/linux/resources.cpp src/linux/dpi_handler.cpp)
 endif ()
 
-include(${PROJECT_SOURCE_DIR}/app/cmake/AppAssets.cmake)
-include(${PROJECT_SOURCE_DIR}/app/cmake/Packaging.cmake)
+include(${PROJECT_SOURCE_DIR}/app/cmake/app_assets.cmake)
+include(${PROJECT_SOURCE_DIR}/app/cmake/packaging.cmake)
 
 target_include_directories(${NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_features(${NAME} PRIVATE cxx_std_20)

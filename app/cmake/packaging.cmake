@@ -7,9 +7,9 @@ install(TARGETS ${NAME}
 
 # Settings for packaging per platform
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
-  include(${PROJECT_SOURCE_DIR}/app/cmake/packaging/Windows.cmake)
+  include(${PROJECT_SOURCE_DIR}/app/cmake/packaging/win32.cmake)
 elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
-  include(${PROJECT_SOURCE_DIR}/app/cmake/packaging/Linux.cmake)
+  include(${PROJECT_SOURCE_DIR}/app/cmake/packaging/linux.cmake)
 elseif (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-  include(${PROJECT_SOURCE_DIR}/app/cmake/packaging/Darwin.cmake)
+  include(${PROJECT_SOURCE_DIR}/app/cmake/packaging/mac.cmake)
 endif ()
