@@ -20,4 +20,4 @@ add_custom_command(TARGET ${NAME} POST_BUILD
   $<TARGET_FILE_DIR:${NAME}>/../share)
 
 # For distribution:
-install(DIRECTORY ${PROJECT_SOURCE_DIR}/src/assets/ DESTINATION ${CMAKE_INSTALL_DATADIR})
+install(DIRECTORY ${PROJECT_SOURCE_DIR}/app/assets/ DESTINATION ${CMAKE_INSTALL_DATADIR})
