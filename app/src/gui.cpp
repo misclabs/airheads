@@ -75,6 +75,8 @@ namespace Airheads {
 			ImGui::SameLine();
 			ImGui::SliderInt("###blue_channel_value", &m_blueValue, -UCHAR_MAX, UCHAR_MAX);
 
+			ImGui::Checkbox("Process video (opencv)", &m_processVideo);
+
 			UpdateCameraTexture();
 
 			ImVec2 cameraSize{ (float)m_videoInput.getWidth(m_activeCamera), (float)m_videoInput.getHeight(m_activeCamera) };
@@ -122,6 +124,10 @@ namespace Airheads {
 			for (int i = 0; i < bufferSizeInBytes; i += 3) {
 				pixels[i] = (unsigned char)std::clamp(pixels[i] + m_blueValue, 0, 255);
 			}
+		} 
+		
+		if (m_processVideo) {
+			m_videoProcessor.ProcessFrame(rect.w, rect.h, pixels);
 		}
 
 		int result = SDL_UpdateTexture(m_cameraRenderTex,

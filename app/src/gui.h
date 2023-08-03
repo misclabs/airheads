@@ -1,7 +1,8 @@
 #pragma once
 
-#include "videoInput.h"
+#include "video_processor.h"
 
+#include "videoInput.h"
 #include "SDL.h"
 
 namespace Airheads {
@@ -22,7 +23,8 @@ namespace Airheads {
 
 		AppWindow* m_appWindow;
 		videoInput m_videoInput;
-		
+		VideoProcessor m_videoProcessor;
+
 		bool m_shouldUpdateAvailableCameras = true;
 		std::vector<std::string> m_cameraNames;
 		
@@ -33,6 +35,7 @@ namespace Airheads {
 
 		bool m_blueFilter = false;
 		int m_blueValue = 128;
+		bool m_processVideo = false;
 	};
 
 }

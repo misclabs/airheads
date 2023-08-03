@@ -30,6 +30,6 @@ FetchContent_Declare(
 message(STATUS "Fetching SDL ...")
 FetchContent_MakeAvailable(SDL2)
 
-# add_subdirectory(opencv)
+add_subdirectory(opencv)
 
 add_subdirectory(video_input)

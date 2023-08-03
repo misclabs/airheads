@@ -16,6 +16,7 @@ target_sources(${NAME} PRIVATE
 	src/app.cpp src/app.h
 	src/app_window.cpp src/app_window.h
 	src/gui.cpp src/gui.h
+	src/video_processor.cpp src/video_processor.h
 )
 
 # Define set of OS specific files to include
@@ -44,5 +45,5 @@ target_link_libraries(${NAME} PRIVATE
 	spdlog 
 	SDL2::SDL2 
 	imgui
-	# ${OpenCV_LIBS}
+	OpenCV
 )
