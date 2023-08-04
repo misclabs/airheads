@@ -11,19 +11,20 @@ namespace Airheads {
 
 	enum class ExitStatus : int { SUCCESS = 0, FAILURE = 1 };
 
+	class App;
+	using AppUniquePtr = std::unique_ptr<App>;
+
 	class App {
 	public:
 
-		using UniquePtr = std::unique_ptr<App>;
+		static AppUniquePtr CreateApplication();
 
-		static UniquePtr CreateApplication();
-
-		App(AppWindow::UniquePtr platformWindowPtr, const char* userConfigPath);
+		App(AppWindowUniquePtr platformWindowPtr, const char* userConfigPath);
 		~App();
 
 		void StopMainLoop();
 		const std::string& UserConfigPath() const {
-			return g_userConfigPath;
+			return m_userConfigPath;
 		}
 
 		ExitStatus RunMainLoop();
@@ -35,11 +36,11 @@ namespace Airheads {
 	private:
 		void on_event(const SDL_WindowEvent& event);
 
-		bool g_shouldKeepLooping{ true };
+		bool m_shouldKeepLooping{ true };
 		bool m_minimized{ false };
 		ExitStatus m_exitStatus{ ExitStatus::SUCCESS };
-		AppWindow::UniquePtr m_windowPtr{ nullptr };
-		std::string g_userConfigPath;
+		AppWindowUniquePtr m_windowPtr{ nullptr };
+		std::string m_userConfigPath;
 	};
 
 }

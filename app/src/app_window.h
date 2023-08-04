@@ -7,9 +7,11 @@
 
 namespace Airheads {
 
+	class AppWindow;
+	using AppWindowUniquePtr = std::unique_ptr<AppWindow>;
+
 	class AppWindow {
 	public:
-		using UniquePtr = std::unique_ptr<AppWindow>;
 
 		struct Settings {
 			std::string title;

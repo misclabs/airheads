@@ -5,10 +5,10 @@
 #include "log.h"
 
 #include "imgui.h"
+//#include "opencv2/core.hpp"
 
-#include <algorithm>
+//#include <algorithm>
 #include <cassert>
-#include <climits>
 
 namespace Airheads {
 
@@ -16,6 +16,8 @@ namespace Airheads {
 		assert(appWindow);
 
 		m_appWindow = appWindow;
+
+		LoadProcessors(m_processorRegistry);
 	}
 
 	void Gui::Update() {
@@ -71,18 +73,18 @@ namespace Airheads {
 		}
 
 		if (m_activeCamera != -1) {
-			ImGui::Checkbox("Add Blue channel", &m_blueFilter);
-			ImGui::SameLine();
-			ImGui::SliderInt("###blue_channel_value", &m_blueValue, -UCHAR_MAX, UCHAR_MAX);
-
-			ImGui::Checkbox("Process video (opencv)", &m_processVideo);
-
+			m_processorRegistry.ForEach([](VideoProcessor& processor) {
+				ImGui::Checkbox(processor.Name().c_str(), &processor.isEnabled);
+				if (processor.isEnabled) {
+					processor.UpdateGuiControls();
+				}
+			});
 			UpdateCameraTexture();
 
 			ImVec2 cameraSize{ (float)m_videoInput.getWidth(m_activeCamera), (float)m_videoInput.getHeight(m_activeCamera) };
 			ImGui::Text("Width:%d Height:%d", (int)cameraSize.x, (int)cameraSize.y);
-			ImGui::Text("Buffer format: BGR24");
-			ImGui::Text("Buffer size (bytes):%d", m_videoInput.getSize(m_activeCamera));
+			//ImGui::Text("Buffer format: BGR24");
+			//ImGui::Text("Buffer size (bytes):%d", m_videoInput.getSize(m_activeCamera));
 			ImGui::Image(m_cameraRenderTex, cameraSize);
 		}
 		ImGui::End();
@@ -117,18 +119,9 @@ namespace Airheads {
 	void Gui::UpdateCameraTexture() {
 		const SDL_Rect rect{ 0, 0, m_videoInput.getWidth(m_activeCamera), m_videoInput.getHeight(m_activeCamera) };
 		const int pitch = rect.w * 3;
-		const int bufferSizeInBytes = m_videoInput.getSize(m_activeCamera);
 		unsigned char* const pixels = m_videoInput.getPixels(m_activeCamera, false, true);
 
-		if (m_blueFilter) {
-			for (int i = 0; i < bufferSizeInBytes; i += 3) {
-				pixels[i] = (unsigned char)std::clamp(pixels[i] + m_blueValue, 0, 255);
-			}
-		} 
-		
-		if (m_processVideo) {
-			m_videoProcessor.ProcessFrame(rect.w, rect.h, pixels);
-		}
+		m_processorRegistry.ProcessFrame({ rect.w, rect.h, pixels });
 
 		int result = SDL_UpdateTexture(m_cameraRenderTex,
 			&rect, pixels, pitch);

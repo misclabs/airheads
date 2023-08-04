@@ -5,16 +5,15 @@
 
 namespace Airheads {
 
-	static const std::string BASE_PATH{SDL_GetBasePath()};
+	static const std::filesystem::path BASE_PATH{SDL_GetBasePath()};
+	static const std::filesystem::path SHARE_PATH{BASE_PATH / ".." / "share" };
 
-	static std::filesystem::path GetResourcePath(const std::filesystem::path& file_path) {
-		std::filesystem::path fontPath{BASE_PATH};
-		fontPath /= "../share" / file_path;
-		return fontPath;
+	std::filesystem::path Resources::GetFontPath(const std::string_view& filename) {
+		return SHARE_PATH / "fonts" / filename;
 	}
 
-	std::filesystem::path Resources::GetFontPath(const std::string_view& font_file) {
-		return GetResourcePath("fonts") / font_file;
+	std::filesystem::path Resources::GetHaarCascadesPath(const std::string_view& filename) {
+		return SHARE_PATH / "haarcascades" / filename;
 	}
 
 }
