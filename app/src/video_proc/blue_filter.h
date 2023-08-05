@@ -13,7 +13,7 @@ namespace Airheads {
 		static BlueFilterUniquePtr Create();
 
 		const std::string& Name() const override;
-		void ProcessFrame(const FrameRef& frame) override;
+		void ProcessFrame(ProcessingContext& context) override;
 		void UpdateGuiControls() override;
 
 	private:

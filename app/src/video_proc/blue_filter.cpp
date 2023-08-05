@@ -16,9 +16,9 @@ namespace Airheads {
 		return g_blueFilterName;
 	}
 
-	void BlueFilter::ProcessFrame(const FrameRef& frame) {
-		for (int i = 0; i < frame.width * frame.height * 3; i += 3) {
-			frame.data[i] = (unsigned char)std::clamp(frame.data[i] + m_blueValue, 0, 255);
+	void BlueFilter::ProcessFrame(ProcessingContext& context) {
+		for (int i = 0; i < context.frame.cols * context.frame.rows * 3; i += 3) {
+			context.frame.data[i] = (unsigned char)std::clamp(context.frame.data[i] + m_blueValue, 0, 255);
 		}
 	}
 

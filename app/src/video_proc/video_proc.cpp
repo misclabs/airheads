@@ -1,4 +1,5 @@
 #include "video_proc.h"
+#include "dot_diff.h"
 #include "face_detector.h"
 #include "hsv_filter.h"
 #include "blue_filter.h"
@@ -8,9 +9,30 @@
 
 namespace Airheads {
 
-	void LoadProcessors(VideoProcessorRegistry& registry) {
+	void VideoProcessorPipeline::AddProcessor(VideoProcessorUniquePtr processor) {
+		assert(processor);
+
+		m_processors.push_back(std::move(processor));
+	}
+
+	void VideoProcessorPipeline::ProcessFrame(ProcessingContext& context) {
+		for (auto& processor : m_processors) {
+			if (processor->isEnabled)
+				processor->ProcessFrame(context);
+		}
+	}
+
+	void VideoProcessorPipeline::ForEach(std::function<void(VideoProcessor&)> operation) {
+		for (auto& processor : m_processors) {
+			operation(*processor);
+		}
+	}
+
+	void LoadProcessors(VideoProcessorPipeline& registry) {
 		registry.AddProcessor(std::move(HsvFilter::Create()));
 		registry.AddProcessor(std::move(BlueFilter::Create()));
+
+		registry.AddProcessor(std::move(DotDiff::Create()));
 
 		FaceDetectorUniquePtr faceDetector = FaceDetector::Create();
 
@@ -26,5 +48,7 @@ namespace Airheads {
 
 		registry.AddProcessor(std::move(faceDetector));
 	}
+
+
 
 }

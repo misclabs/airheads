@@ -121,7 +121,8 @@ namespace Airheads {
 		const int pitch = rect.w * 3;
 		unsigned char* const pixels = m_videoInput.getPixels(m_activeCamera, false, true);
 
-		m_processorRegistry.ProcessFrame({ rect.w, rect.h, pixels });
+		m_processingContext.SetFrameBGR(rect.w, rect.h, pixels);
+		m_processorRegistry.ProcessFrame(m_processingContext);
 
 		int result = SDL_UpdateTexture(m_cameraRenderTex,
 			&rect, pixels, pitch);

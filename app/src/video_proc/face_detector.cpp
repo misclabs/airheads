@@ -18,7 +18,7 @@ namespace Airheads {
 		const std::string& Name() const override {
 			return g_faceDetectorName;
 		}
-		void ProcessFrame(const FrameRef& frame) override;
+		void ProcessFrame(ProcessingContext& context) override;
 		bool LoadFaceClassifier(const std::filesystem::path& path) override;
 		bool LoadEyesClassifier(const std::filesystem::path& path) override;
 
@@ -50,7 +50,7 @@ namespace Airheads {
 		return nestedCascade.load(path.string());
 	}
 
-	void FaceDetectorImpl::ProcessFrame(const FrameRef& frame) {
+	void FaceDetectorImpl::ProcessFrame(ProcessingContext& context) {
 		const static cv::Scalar colors[] = {
 			cv::Scalar(255,0,0),
 			cv::Scalar(255,128,0),
@@ -62,12 +62,12 @@ namespace Airheads {
 			cv::Scalar(255,0,255)
 		};
 
-		cv::Mat img {frame.height, frame.width, CV_8UC3, frame.data};
+		//cv::Mat img {context.height, context.width, CV_8UC3, context.data};
 		bool tryFlip = false;
 
 		faces.clear();
 		faces2.clear();
-		cv::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
+		cv::cvtColor(context.frame, gray, cv::COLOR_BGR2GRAY);
 		double fx = 1.0 / scale;
 		cv::resize(gray, smallImg, cv::Size(), fx, fx, cv::INTER_LINEAR_EXACT);
 		cv::equalizeHist(smallImg, smallImg);
@@ -97,9 +97,9 @@ namespace Airheads {
 				center.x = cvRound((r.x + r.width * 0.5) * scale);
 				center.y = cvRound((r.y + r.height * 0.5) * scale);
 				radius = cvRound((r.width + r.height) * 0.25 * scale);
-				cv::circle(img, center, radius, color, 3, 8, 0);
+				cv::circle(context.frame, center, radius, color, 3, 8, 0);
 			} else {
-				cv::rectangle(img, cv::Point(cvRound(r.x*scale), cvRound(r.y*scale)),
+				cv::rectangle(context.frame, cv::Point(cvRound(r.x*scale), cvRound(r.y*scale)),
 					cv::Point(cvRound((r.x + r.width - 1) * scale), cvRound((r.y + r.height-1)*scale)),
 					color, 3, 8, 0);
 			}
@@ -121,7 +121,7 @@ namespace Airheads {
 				center.x = cvRound((r.x + nr.x + nr.width * 0.5) * scale);
 				center.y = cvRound((r.y + nr.y + nr.height * 0.5) * scale);
 				radius = cvRound((nr.width + nr.height) * 0.25 * scale);
-				cv::circle(img, center, radius, color, 3, 8, 0);
+				cv::circle(context.frame, center, radius, color, 3, 8, 0);
 			}
 		}
 	}

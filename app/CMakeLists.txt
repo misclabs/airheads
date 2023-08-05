@@ -17,6 +17,7 @@ target_sources(${NAME} PRIVATE
 	src/app_window.cpp src/app_window.h
 	src/gui.cpp src/gui.h
 	src/video_proc/video_proc.cpp src/video_proc/video_proc.h
+	src/video_proc/dot_diff.cpp src/video_proc/dot_diff.h
 	src/video_proc/hsv_filter.cpp src/video_proc/hsv_filter.h
 	src/video_proc/face_detector.cpp src/video_proc/face_detector.h
 )

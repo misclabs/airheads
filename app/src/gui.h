@@ -32,7 +32,8 @@ namespace Airheads {
 		
 		SDL_Texture* m_cameraRenderTex = nullptr;
 
-		VideoProcessorRegistry m_processorRegistry;
+		VideoProcessorPipeline m_processorRegistry;
+		ProcessingContext m_processingContext;
 	};
 
 }
