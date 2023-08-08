@@ -1,5 +1,7 @@
 #pragma once
 
+#include "opencv2/core.hpp"
+
 #include <memory>
 #include <string>
 #include <vector>
@@ -8,12 +10,19 @@
 
 namespace Airheads {
 
-	struct FrameRef {
-		// assume 3 8-bit color channels in BGR order
-		// pitch is width * 3
-		int width;
-		int height;
-		unsigned char* data;
+	struct ProcessingContext {
+		// frame is input from the camera and displayed as the end result.
+		//   - It may be written to by a VideoProcessor in the pipeline.
+		//   - It is the only Mat that doesn't own it's data
+		//   - Data format is BGR, 8-bits per channel (0-255)
+		cv::Mat frame;
+		void SetFrameBGR(int width, int height, unsigned char* data) {
+			frame = {height, width, CV_8UC3, data};
+		}
+
+		cv::Mat saturation_map;
+		cv::Mat value_map;
+		cv::Mat cluster_map;
 	};
 	
 	class VideoProcessor {
@@ -23,40 +32,31 @@ namespace Airheads {
 
 		virtual const std::string& Name() const = 0;
 
-		virtual void ProcessFrame(const FrameRef& frame) = 0;
+		virtual void StartCapture(int frameWidth, int frameHeight) {}
+		
+		virtual void ProcessFrame(ProcessingContext& context) = 0;
 
-		virtual void UpdateGuiControls() {};
+		virtual void UpdateConfigControls() {};
+		virtual void UpdateStatsControls() {};
 
-		bool isEnabled = false;
+		// TODO(jw): this needs to move up to the pipeline level
+		bool isEnabled = true;
 	};
 
 	using VideoProcessorUniquePtr = std::unique_ptr<VideoProcessor>;
 
-	class VideoProcessorRegistry {
+	class VideoProcessorPipeline {
 	public:
-		void AddProcessor(VideoProcessorUniquePtr processor) {
-			assert(processor);
 
-			m_processors.push_back(std::move(processor));
-		}
-	
-		void ProcessFrame(const FrameRef& frame) {
-			for (auto& processor : m_processors) {
-				if (processor->isEnabled)
-					processor->ProcessFrame(frame);
-			}
-		}
-
-		void ForEach(std::function<void(VideoProcessor&)> operation) {
-			for (auto& processor : m_processors) {
-				operation(*processor);
-			}
-		}
+		void StartCapture(int frameWidth, int frameHeight);
+		void AddProcessor(VideoProcessorUniquePtr processor);
+		void ProcessFrame(ProcessingContext& context);
+		void ForEach(std::function<void(VideoProcessor&)> operation);
 
 	private:
 		std::vector<VideoProcessorUniquePtr> m_processors;
 	};
 
-	void LoadProcessors(VideoProcessorRegistry& registry);
+	void LoadProcessors(VideoProcessorPipeline& registry);
 
 }
