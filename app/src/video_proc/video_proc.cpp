@@ -1,10 +1,6 @@
 #include "video_proc.h"
 #include "dot_diff.h"
-#include "face_detector.h"
-#include "hsv_filter.h"
-#include "blue_filter.h"
 
-#include "log.h"
 #include "resources.h"
 
 namespace Airheads {
@@ -13,6 +9,13 @@ namespace Airheads {
 		assert(processor);
 
 		m_processors.push_back(std::move(processor));
+	}
+
+	void VideoProcessorPipeline::StartCapture(int frameWidth, int frameHeight) {
+		for (auto& processor : m_processors) {
+			if (processor->isEnabled)
+				processor->StartCapture(frameWidth, frameHeight);
+		}
 	}
 
 	void VideoProcessorPipeline::ProcessFrame(ProcessingContext& context) {
@@ -29,26 +32,7 @@ namespace Airheads {
 	}
 
 	void LoadProcessors(VideoProcessorPipeline& registry) {
-		registry.AddProcessor(std::move(HsvFilter::Create()));
-		registry.AddProcessor(std::move(BlueFilter::Create()));
-
 		registry.AddProcessor(std::move(DotDiff::Create()));
-
-		FaceDetectorUniquePtr faceDetector = FaceDetector::Create();
-
-		const auto faceClassifierPath = Resources::GetHaarCascadesPath("haarcascade_frontalface_alt.xml");
-		if (!faceDetector->LoadFaceClassifier(faceClassifierPath)) {
-			APP_ERROR("Couldn't load face classifier data at {}", faceClassifierPath.string());
-		}
-
-		const auto eyesClassifierPath = Resources::GetHaarCascadesPath("haarcascade_eye_tree_eyeglasses.xml");
-		if (!faceDetector->LoadEyesClassifier(eyesClassifierPath)) {
-			APP_ERROR("Couldn't load eyes classifier data at {}", eyesClassifierPath.string());
-		}
-
-		registry.AddProcessor(std::move(faceDetector));
 	}
-
-
 
 }

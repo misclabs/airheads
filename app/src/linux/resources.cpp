@@ -11,9 +11,4 @@ namespace Airheads {
 		return SHARE_PATH / "fonts" / filename;
 	}
 
-
-	std::filesystem::path Resources::GetHaarCascadesPath(const std::string_view& filename) {
-		return SHARE_PATH / "haarcascades" / filename;
-	}
-
 }

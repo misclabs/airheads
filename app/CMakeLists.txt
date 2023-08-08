@@ -2,7 +2,7 @@ set(NAME "airheads")
 
 configure_file(src/project_conf.cpp.in src/project_conf.cpp @ONLY)
 
-add_executable(${NAME} WIN32 MACOSX_BUNDLE src/main.cpp "src/video_proc/blue_filter.h" "src/video_proc/blue_filter.cpp")
+add_executable(${NAME} WIN32 MACOSX_BUNDLE src/main.cpp)
 
 target_include_directories(${NAME}
 	PUBLIC pub
@@ -16,10 +16,10 @@ target_sources(${NAME} PRIVATE
 	src/app.cpp src/app.h
 	src/app_window.cpp src/app_window.h
 	src/gui.cpp src/gui.h
+	src/gui_mat_renderer.cpp src/gui_mat_renderer.h
 	src/video_proc/video_proc.cpp src/video_proc/video_proc.h
 	src/video_proc/dot_diff.cpp src/video_proc/dot_diff.h
-	src/video_proc/hsv_filter.cpp src/video_proc/hsv_filter.h
-	src/video_proc/face_detector.cpp src/video_proc/face_detector.h
+	src/video_proc/cluster.cpp src/video_proc/cluster.h
 )
 
 # Define set of OS specific files to include

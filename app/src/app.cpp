@@ -72,7 +72,7 @@ namespace Airheads {
 		ImGui_ImplSDL2_InitForSDLRenderer(
 			m_windowPtr->NativeWindow(), m_windowPtr->NativeRenderer());
 		ImGui_ImplSDLRenderer_Init(m_windowPtr->NativeRenderer());
-		Gui gui(m_windowPtr.get());
+		Gui gui(this, m_windowPtr.get());
 
 		m_shouldKeepLooping = true;
 		while (m_shouldKeepLooping) {

@@ -13,8 +13,32 @@ namespace Airheads {
 		static DotDiffUniquePtr Create();
 
 		const std::string& Name() const override;
-		void ProcessFrame(ProcessingContext& context) override;
+		
+		void StartCapture(int frameWidth, int frameHeight) override;
 
+		void ProcessFrame(ProcessingContext& context) override;
+		
+		void UpdateConfigControls() override;
+		void UpdateStatsControls() override;
+
+	private:
+		
+		void Reset();
+
+		// Pixels under value_threshold are rejected.
+		int m_valueThreshold = 200; // #93
+		int m_saturationThreshold = 65;
+		int m_clusterColor = 50; // #ought to be significantly less than value_threshold
+		cv::Point m_upperClusterLastCoords;
+		cv::Point m_lowerClusterLastCoords;
+		int m_interclusterDistPx;
+		int m_minDist;
+		int m_maxDist;
+		int m_frameWidth;
+		int m_frameHeight;
+		double dmdm_thresh = 1.08;
+		cv::Mat hsv;
+		int m_maxClusterSizePx = 4096;
 	};
 
 }

@@ -19,6 +19,10 @@ namespace Airheads {
 		void SetFrameBGR(int width, int height, unsigned char* data) {
 			frame = {height, width, CV_8UC3, data};
 		}
+
+		cv::Mat saturation_map;
+		cv::Mat value_map;
+		cv::Mat cluster_map;
 	};
 	
 	class VideoProcessor {
@@ -28,11 +32,15 @@ namespace Airheads {
 
 		virtual const std::string& Name() const = 0;
 
+		virtual void StartCapture(int frameWidth, int frameHeight) {}
+		
 		virtual void ProcessFrame(ProcessingContext& context) = 0;
 
-		virtual void UpdateGuiControls() {};
+		virtual void UpdateConfigControls() {};
+		virtual void UpdateStatsControls() {};
 
-		bool isEnabled = false;
+		// TODO(jw): this needs to move up to the pipeline level
+		bool isEnabled = true;
 	};
 
 	using VideoProcessorUniquePtr = std::unique_ptr<VideoProcessor>;
@@ -40,6 +48,7 @@ namespace Airheads {
 	class VideoProcessorPipeline {
 	public:
 
+		void StartCapture(int frameWidth, int frameHeight);
 		void AddProcessor(VideoProcessorUniquePtr processor);
 		void ProcessFrame(ProcessingContext& context);
 		void ForEach(std::function<void(VideoProcessor&)> operation);
