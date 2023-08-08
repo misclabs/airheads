@@ -5,6 +5,8 @@ Most of the interesting stuff happens in [gui.cpp](app/src/gui.cpp). Specificlly
 
 ## Dependencies and Credits
 
+Dotdiff algorithm and logic is based on [Anthony Barker's](https://github.com/fiveisgreen) [python scripts](https://github.com/fiveisgreen/Dotdiff).
+
 The project structure is based roughly on [cpp-gui-template-sdl2 template](https://github.com/MartinHelmut/cpp-gui-template-sdl2).
 
 The build system is cmake. 
