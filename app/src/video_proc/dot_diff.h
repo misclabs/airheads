@@ -26,8 +26,8 @@ namespace Airheads {
 		void Reset();
 
 		// Pixels under value_threshold are rejected.
-		int m_valueThreshold = 200; // #93
-		int m_saturationThreshold = 65;
+		int m_valueThreshold = 93; // 200;
+		int m_saturationThreshold = 190;  // 65;
 		int m_clusterColor = 50; // #ought to be significantly less than value_threshold
 		cv::Point m_upperClusterLastCoords;
 		cv::Point m_lowerClusterLastCoords;
