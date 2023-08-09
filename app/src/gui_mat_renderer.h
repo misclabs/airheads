@@ -5,6 +5,7 @@
 #include <memory>
 
 namespace Airheads {
+
 	class GuiMatRenderer {
 	public:
 		GuiMatRenderer(SDL_Renderer* sdlRenderer, cv::Mat* mat);

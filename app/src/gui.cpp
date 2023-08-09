@@ -163,7 +163,19 @@ namespace Airheads {
 			UpdateCameraTexture();
 
 			ImVec2 cameraSize{ (float)m_videoInput.getWidth(m_activeCamera), (float)m_videoInput.getHeight(m_activeCamera) };
-			ImGui::Image(m_cameraRenderTex, cameraSize);
+			ImVec2 availSize = ImGui::GetContentRegionAvail();
+			ImVec2 renderSize = [&] {
+				if (cameraSize.x / cameraSize.y > availSize.x / availSize.y) {
+					// fit width
+					float scale = availSize.x / cameraSize.x;
+					return ImVec2{ cameraSize.x * scale, cameraSize.y * scale };
+				}
+				// fit height
+				float scale = availSize.y / cameraSize.y;
+				return ImVec2{ cameraSize.x * scale, cameraSize.y * scale };
+			}();
+			
+			ImGui::Image(m_cameraRenderTex, renderSize);
 		}
 	}
 

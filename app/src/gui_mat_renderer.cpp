@@ -82,7 +82,19 @@ namespace Airheads {
 
 	void GuiMatRenderer::RenderImage() {
 		if (m_sdlTexture) {
-			ImGui::Image(m_sdlTexture, { (float)m_texRect.w, (float)m_texRect.h });
+			ImVec2 texSize{ (float)m_texRect.w, (float)m_texRect.h };
+			ImVec2 availSize = ImGui::GetContentRegionAvail();
+			ImVec2 renderSize = [&] {
+				if (texSize.x / texSize.y > availSize.x / availSize.y) {
+					// fit width
+					float scale = availSize.x / texSize.x;
+					return ImVec2{ texSize.x * scale, texSize.y * scale };
+				}
+				// fit height
+				float scale = availSize.y / texSize.y;
+				return ImVec2{ texSize.x * scale, texSize.y * scale };
+			}();
+			ImGui::Image(m_sdlTexture, renderSize);
 		}
 	}
 
