@@ -53,7 +53,7 @@ namespace Airheads {
 
 	void DotDiff::Reset() {
 		m_upperClusterLastCoords = { m_frameWidth / 2, (int)(m_frameHeight * 0.3) };
-		m_lowerClusterLastCoords = { m_frameWidth / 2, (int)(m_frameWidth * 0.6) };
+		m_lowerClusterLastCoords = { m_frameWidth / 2, (int)(m_frameHeight * 0.6) };
 		m_interclusterDistPx = m_frameWidth;
 		m_minDist = m_frameWidth;
 		m_maxDist = 0;
