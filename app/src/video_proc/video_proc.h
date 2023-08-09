@@ -20,9 +20,23 @@ namespace Airheads {
 			frame = {height, width, CV_8UC3, data};
 		}
 
-		cv::Mat saturation_map;
-		cv::Mat value_map;
-		cv::Mat cluster_map;
+		cv::Mat saturationMap;
+		cv::Mat valueMap;
+		cv::Mat clusterMap;
+
+		void SetDotLocs(cv::Point top, cv::Point bot);
+		cv::Point TopDotLoc() { return m_topDotLoc; }
+		cv::Point BotDotLoc() { return m_botDotLoc; }
+		int DotsDistPx() { return m_dotsDistPx; }
+		int MinDotDistPx() { return m_minDotsDistPx; }
+		int MaxDotDistPx() { return m_maxDotsDistPx; }
+
+	private:
+		cv::Point m_topDotLoc;
+		cv::Point m_botDotLoc;
+		int m_dotsDistPx;
+		int m_minDotsDistPx;
+		int m_maxDotsDistPx;
 	};
 	
 	class VideoProcessor {
@@ -39,7 +53,6 @@ namespace Airheads {
 		virtual void UpdateConfigControls() {};
 		virtual void UpdateStatsControls() {};
 
-		// TODO(jw): this needs to move up to the pipeline level
 		bool isEnabled = true;
 	};
 
@@ -48,13 +61,22 @@ namespace Airheads {
 	class VideoProcessorPipeline {
 	public:
 
-		void StartCapture(int frameWidth, int frameHeight);
+		void StartCapture(int width, int height, unsigned char* data);
+		void StopCapture();
+
 		void AddProcessor(VideoProcessorUniquePtr processor);
-		void ProcessFrame(ProcessingContext& context);
+		void OnFrameDataUpdated();
+		void UpdateConfigGui();
+		void UpdateStatsGui();
+		
 		void ForEach(std::function<void(VideoProcessor&)> operation);
+
+		ProcessingContext& Context() { return m_context; }
 
 	private:
 		std::vector<VideoProcessorUniquePtr> m_processors;
+		bool m_isCapturing = false;
+		ProcessingContext m_context;
 	};
 
 	void LoadProcessors(VideoProcessorPipeline& registry);

@@ -24,9 +24,9 @@ namespace Airheads {
 	}
 
 	Gui::Gui(App* app, AppWindow* appWindow) 
-		: m_saturationMapRenderer(appWindow->NativeRenderer(), &m_processingContext.saturation_map),
-		m_valueMapRenderer(appWindow->NativeRenderer(), &m_processingContext.value_map),
-		m_clusterMapRenderer(appWindow->NativeRenderer(), &m_processingContext.cluster_map)
+		: m_saturationMapRenderer(appWindow->NativeRenderer(), &m_processorPipeline.Context().saturationMap),
+		m_valueMapRenderer(appWindow->NativeRenderer(), &m_processorPipeline.Context().valueMap),
+		m_clusterMapRenderer(appWindow->NativeRenderer(), &m_processorPipeline.Context().clusterMap)
 	{
 		assert(app);
 		assert(appWindow);
@@ -74,12 +74,21 @@ namespace Airheads {
 		ImGuiWindow("Stats",
 			[this]() -> void { UpdateStatsContent(); }, &m_showStats);
 
-		ImGuiWindow("Saturation Map",
-			[this]() -> void { UpdateSaturationMapContent(); }, &m_showSaturationMap);
-		ImGuiWindow("Value Map",
-			[this]() -> void { UpdateValueMapContent(); }, &m_showValueMap);
-		ImGuiWindow("Cluster Map",
-			[this]() -> void { UpdateClusterMapContent(); }, &m_showClusterMap);
+		ImGuiWindow("Saturation Map", [this]() -> void { 
+			ImGui::Text("Saturation Map (threshold applied)");
+			m_saturationMapRenderer.UpdateTexture();
+			m_saturationMapRenderer.RenderImage();
+		}, &m_showSaturationMap);
+		ImGuiWindow("Value Map", [this]() -> void { 
+			ImGui::Text("Value Map (inverted, threshold applied)");
+			m_valueMapRenderer.UpdateTexture();
+			m_valueMapRenderer.RenderImage();
+		}, &m_showValueMap);
+		ImGuiWindow("Cluster Map", [this]() -> void { 
+			ImGui::Text("Cluster Map (saturation anded w/ value map)");
+			m_clusterMapRenderer.UpdateTexture();
+			m_clusterMapRenderer.RenderImage();
+		}, &m_showClusterMap);
 	}
 
 	void Gui::UpdateStatsContent() {
@@ -87,37 +96,34 @@ namespace Airheads {
 		ImGui::Separator();
 
 		if (m_activeCamera != -1) {
+			ImGui::Separator();
+			ImGui::Text("Camera Input");
 			ImVec2 cameraSize{ (float)m_videoInput.getWidth(m_activeCamera), (float)m_videoInput.getHeight(m_activeCamera) };
 			ImGui::Text("Width:%d Height:%d", (int)cameraSize.x, (int)cameraSize.y);
 			ImGui::Text("Buffer size (bytes):%d", m_videoInput.getSize(m_activeCamera));
 
-			m_processorPipeline.ForEach([](VideoProcessor& processor) {
-				ImGui::Separator();
-				ImGui::Text(processor.Name().c_str());
-				if (processor.isEnabled) {
-					processor.UpdateStatsControls();
-				}
-			});
+			m_processorPipeline.UpdateStatsGui();
 		} else {
 			ImGui::Text("No camera active");
 		}
 	}
 
 	void Gui::UpdatePipelineConfigContent() {
-		bool first = true;
-		m_processorPipeline.ForEach([&first](VideoProcessor& processor) {
-			if (!first) {
-				ImGui::Separator();
-			} else {
-				first = false;
-			}
+		m_processorPipeline.UpdateConfigGui();
+		//bool first = true;
+		//m_processorPipeline.ForEach([&first](VideoProcessor& processor) {
+		//	if (!first) {
+		//		ImGui::Separator();
+		//	} else {
+		//		first = false;
+		//	}
 
-			//ImGui::Checkbox(processor.Name().c_str(), &processor.isEnabled);
-			ImGui::Text(processor.Name().c_str());
-			if (processor.isEnabled) {
-				processor.UpdateConfigControls();
-			}
-		});
+		//	//ImGui::Checkbox(processor.Name().c_str(), &processor.isEnabled);
+		//	ImGui::Text(processor.Name().c_str());
+		//	if (processor.isEnabled) {
+		//		processor.UpdateConfigControls();
+		//	}
+		//});
 	}
 
 	void Gui::UpdateMainGuiContent() {
@@ -179,24 +185,6 @@ namespace Airheads {
 		}
 	}
 
-	void Gui::UpdateSaturationMapContent() {
-		ImGui::Text("Saturation Map (threshold applied)");
-		m_saturationMapRenderer.UpdateTexture();
-		m_saturationMapRenderer.RenderImage();
-	}
-
-	void Gui::UpdateValueMapContent() {
-		ImGui::Text("Value Map (inverted, threshold applied)");
-		m_valueMapRenderer.UpdateTexture();
-		m_valueMapRenderer.RenderImage();
-	}
-
-	void Gui::UpdateClusterMapContent() {
-		ImGui::Text("Cluster Map (saturation anded w/ value map)");
-		m_clusterMapRenderer.UpdateTexture();
-		m_clusterMapRenderer.RenderImage();
-	}
-
 	void Gui::SetActiveCamera(int index) {
 		if (index == m_activeCamera)
 			return;
@@ -232,8 +220,9 @@ namespace Airheads {
 		const int pitch = rect.w * 3;
 		unsigned char* const pixels = m_videoInput.getPixels(m_activeCamera, false, true);
 
-		m_processingContext.SetFrameBGR(rect.w, rect.h, pixels);
-		m_processorPipeline.ProcessFrame(m_processingContext);
+		//m_processingContext.SetFrameBGR(rect.w, rect.h, pixels);
+		//m_processorPipeline.ProcessFrame(m_processingContext);
+		m_processorPipeline.OnFrameDataUpdated(rect.w, rect.h, pixels);
 
 		int result = SDL_UpdateTexture(m_cameraRenderTex,
 			&rect, pixels, pitch);

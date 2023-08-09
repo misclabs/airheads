@@ -12,11 +12,11 @@
 
 namespace Airheads {
 
-	int DistanceBetween(cv::Point a, cv::Point b) {
-		auto dx = b.x - a.x;
-		auto dy = b.y - a.y;
-		return (int)sqrt(dx * dx + dy * dy);
-	}
+	//int DistanceBetween(cv::Point a, cv::Point b) {
+	//	auto dx = b.x - a.x;
+	//	auto dy = b.y - a.y;
+	//	return (int)sqrt(dx * dx + dy * dy);
+	//}
 
 	struct Bounds {
 		cv::Point topLeft;
@@ -67,40 +67,40 @@ namespace Airheads {
 
 		cv::cvtColor(context.frame, hsv, cv::COLOR_BGR2HSV);
 
-		context.saturation_map.create(hsv.rows, hsv.cols, CV_8UC1);
-		context.value_map.create(hsv.rows, hsv.cols, CV_8UC1);
+		context.saturationMap.create(hsv.rows, hsv.cols, CV_8UC1);
+		context.valueMap.create(hsv.rows, hsv.cols, CV_8UC1);
 		{
-			cv::Mat sv_out[] = { context.saturation_map, context.value_map };
+			cv::Mat sv_out[] = { context.saturationMap, context.valueMap };
 			int from_to[] = { 1,0, 2,1 };
 			cv::mixChannels(&hsv, 1, sv_out, 2, from_to, 2);
 		}
 		
 		//_, saturation_map = cv2.threshold(saturation_map, saturation_threshold, 255, cv2.THRESH_BINARY_INV) #now saturation_map is really a mask
-		cv::threshold(context.saturation_map, context.saturation_map, m_saturationThreshold, 255, cv::THRESH_BINARY_INV);
+		cv::threshold(context.saturationMap, context.saturationMap, m_saturationThreshold, 255, cv::THRESH_BINARY_INV);
 
 		//_, value_map = cv2.threshold(~value_map, inv_thresh, 255, cv2.THRESH_TOZERO)
-		context.value_map.forEach<uchar>([](uchar& pixel, const int * position) -> void {
+		context.valueMap.forEach<uchar>([](uchar& pixel, const int * position) -> void {
 			pixel = ~pixel;
 		});
-		cv::threshold(context.value_map, context.value_map, inv_thresh, 255, cv::THRESH_TOZERO);
+		cv::threshold(context.valueMap, context.valueMap, inv_thresh, 255, cv::THRESH_TOZERO);
 
 		//#first return value of cv2.threshold is the threshold
 		//#manual: https://docs.opencv.org/3.4/d7/d4d/tutorial_py_thresholding.html
 		//value_map = cv2.bitwise_and(value_map, saturation_map)
 		//cv::bitwise_and(context.value_map, context.saturation_map, context.value_map);
-		context.cluster_map.create(context.value_map.rows, context.value_map.cols, CV_8UC1);
-		cv::bitwise_and(context.value_map, context.saturation_map, context.cluster_map);
+		context.clusterMap.create(context.valueMap.rows, context.valueMap.cols, CV_8UC1);
+		cv::bitwise_and(context.valueMap, context.saturationMap, context.clusterMap);
 
 		int max_seek_radius = (int)std::max(100.0, 0.65 * m_interclusterDistPx);
 
 		cv::Point upper_cluster_seed;
-		bool foundU = Cluster::FindSeed(context.cluster_map,
+		bool foundU = Cluster::FindSeed(context.clusterMap,
 			m_upperClusterLastCoords, 
 			(int)inv_thresh, max_seek_radius,
 			upper_cluster_seed);
 		
 		cv::Point lower_cluster_seed;
-		bool foundL = Cluster::FindSeed(context.cluster_map,
+		bool foundL = Cluster::FindSeed(context.clusterMap,
 			m_lowerClusterLastCoords,
 			(int)inv_thresh, max_seek_radius,
 			lower_cluster_seed
@@ -109,14 +109,14 @@ namespace Airheads {
 		Bounds frameBounds = { {0, 0}, {context.frame.cols, context.frame.rows} };
 		Cluster::Cluster cluster_upper;
 		if (foundU) {
-			cluster_upper = Cluster::GrowCluster(context.cluster_map, upper_cluster_seed, (uchar)inv_thresh, m_clusterColor, m_maxClusterSizePx);
+			cluster_upper = Cluster::GrowCluster(context.clusterMap, upper_cluster_seed, (uchar)inv_thresh, m_clusterColor, m_maxClusterSizePx);
 			m_upperClusterLastCoords = cluster_upper.get_center();
 			frameBounds.Clamp(m_upperClusterLastCoords);
 		}
 
 		Cluster::Cluster cluster_lower;
 		if (foundL) {
-			cluster_lower = Cluster::GrowCluster(context.cluster_map, lower_cluster_seed, (uchar)inv_thresh, m_clusterColor, m_maxClusterSizePx);
+			cluster_lower = Cluster::GrowCluster(context.clusterMap, lower_cluster_seed, (uchar)inv_thresh, m_clusterColor, m_maxClusterSizePx);
 			m_lowerClusterLastCoords = cluster_lower.get_center();
 			frameBounds.Clamp(m_lowerClusterLastCoords);
 		}
@@ -147,9 +147,9 @@ namespace Airheads {
 		ImGui::SliderInt("Saturation Threshold", &m_saturationThreshold, 0, 255);
 		ImGui::SliderInt("Value Threshold", &m_valueThreshold, 0, 255);
 		
-		if (ImGui::Button("Reset Cluster Guess")) {
-			Reset();
-		}
+		//if (ImGui::Button("Reset Cluster Guess")) {
+		//	Reset();
+		//}
 	}
 
 	void DotDiff::UpdateStatsControls() {

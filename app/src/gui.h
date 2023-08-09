@@ -25,9 +25,6 @@ namespace Airheads {
 		void UpdateStatsContent();
 		void UpdatePipelineConfigContent();
 		void UpdateMainGuiContent();
-		void UpdateSaturationMapContent();
-		void UpdateValueMapContent();
-		void UpdateClusterMapContent();
 
 		App* m_app;
 		AppWindow* m_appWindow;
@@ -42,7 +39,7 @@ namespace Airheads {
 		SDL_Texture* m_cameraRenderTex = nullptr;
 
 		VideoProcessorPipeline m_processorPipeline;
-		ProcessingContext m_processingContext;
+		//ProcessingContext m_processingContext;
 
 		bool m_showStats = true;
 		bool m_showPipelineConfig = true;
