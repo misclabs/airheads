@@ -21,7 +21,7 @@ namespace Airheads {
 	private:
 
 		void SetActiveCamera(int index);
-		void UpdateCameraTexture();
+		void UpdateCameraTexture(unsigned char* pixels = nullptr);
 		void UpdateStatsContent();
 		void UpdatePipelineConfigContent();
 		void UpdateMainGuiContent();

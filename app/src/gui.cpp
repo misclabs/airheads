@@ -65,7 +65,7 @@ namespace Airheads {
 		}
 
 		ImGuiWindow("Pipeline Config", 
-			[this]() -> void { UpdatePipelineConfigContent(); }, &m_showPipelineConfig);
+			[this]() -> void { m_processorPipeline.UpdateConfigGui(); }, &m_showPipelineConfig);
 		
 		ImGui::Begin("Actually the Real App", nullptr);
 		UpdateMainGuiContent();
@@ -108,24 +108,6 @@ namespace Airheads {
 		}
 	}
 
-	void Gui::UpdatePipelineConfigContent() {
-		m_processorPipeline.UpdateConfigGui();
-		//bool first = true;
-		//m_processorPipeline.ForEach([&first](VideoProcessor& processor) {
-		//	if (!first) {
-		//		ImGui::Separator();
-		//	} else {
-		//		first = false;
-		//	}
-
-		//	//ImGui::Checkbox(processor.Name().c_str(), &processor.isEnabled);
-		//	ImGui::Text(processor.Name().c_str());
-		//	if (processor.isEnabled) {
-		//		processor.UpdateConfigControls();
-		//	}
-		//});
-	}
-
 	void Gui::UpdateMainGuiContent() {
 		// Camera Selection Combobox
 		{
@@ -152,8 +134,7 @@ namespace Airheads {
 				if (ImGui::Button("Stop Video Capture")) {
 					SetActiveCamera(-1);
 				}
-			}
-			else {
+			} else {
 				if (ImGui::Button(START_VIDEO_CAPTURE_TEXT)) {
 					SetActiveCamera(m_selectedCamera);
 				}
@@ -190,6 +171,7 @@ namespace Airheads {
 			return;
 
 		if (m_activeCamera >= 0) {
+			m_processorPipeline.StopCapture();
 			m_videoInput.stopDevice(m_activeCamera);
 			SDL_DestroyTexture(m_cameraRenderTex);
 			m_cameraRenderTex = nullptr;
@@ -208,21 +190,24 @@ namespace Airheads {
 			APP_ERROR("Error creating camera texture: {}", SDL_GetError());
 		}
 
+		auto pixels = m_videoInput.getPixels(m_activeCamera, false, true);
 		m_processorPipeline.StartCapture(
 			m_videoInput.getWidth(m_activeCamera),
-			m_videoInput.getHeight(m_activeCamera));
+			m_videoInput.getHeight(m_activeCamera),
+			pixels);
 
-		UpdateCameraTexture();
+		UpdateCameraTexture(pixels);
 	}
 
-	void Gui::UpdateCameraTexture() {
+	void Gui::UpdateCameraTexture(unsigned char* pixels) {
 		const SDL_Rect rect{ 0, 0, m_videoInput.getWidth(m_activeCamera), m_videoInput.getHeight(m_activeCamera) };
 		const int pitch = rect.w * 3;
-		unsigned char* const pixels = m_videoInput.getPixels(m_activeCamera, false, true);
+		if (pixels == nullptr)
+			pixels = m_videoInput.getPixels(m_activeCamera, false, true);
 
 		//m_processingContext.SetFrameBGR(rect.w, rect.h, pixels);
 		//m_processorPipeline.ProcessFrame(m_processingContext);
-		m_processorPipeline.OnFrameDataUpdated(rect.w, rect.h, pixels);
+		m_processorPipeline.FrameDataUpdated();
 
 		int result = SDL_UpdateTexture(m_cameraRenderTex,
 			&rect, pixels, pitch);

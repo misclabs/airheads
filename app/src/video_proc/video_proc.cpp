@@ -4,6 +4,8 @@
 #include "resources.h"
 #include "imgui.h"
 
+#include <limits>
+
 namespace Airheads {
 
 	int DistanceBetween(cv::Point a, cv::Point b) {
@@ -19,37 +21,22 @@ namespace Airheads {
 	}
 
 	void VideoProcessorPipeline::StartCapture(int width, int height, unsigned char* data) {
+		m_context.SetFrameBGR(width, height, data);
+		m_context.ResetOutput();
+
 		for (auto& processor : m_processors) {
 			if (processor->isEnabled)
-				processor->StartCapture(frameWidth, frameHeight);
+				processor->StartCapture(width, height);
 		}
 	}
 
 	void VideoProcessorPipeline::StopCapture() {
-		// TODO(jw):
-		//for (auto& processor : m_processors) {
-		//	if (processor->isEnabled)
-		//		processor->StartCapture(frameWidth, frameHeight);
-		//}
+		m_context.ClearFrame();
 	}
 
-	//void DotDiff::StartCapture(int frameWidth, int frameHeight) {
-	//	m_frameWidth = frameWidth;
-	//	m_frameHeight = frameHeight;
-	//	Reset();
-	//}
-
-	//void DotDiff::Reset() {
-	//	m_upperClusterLastCoords = { m_frameWidth / 2, (int)(m_frameHeight * 0.3) };
-	//	m_lowerClusterLastCoords = { m_frameWidth / 2, (int)(m_frameHeight * 0.6) };
-	//	m_interclusterDistPx = m_frameWidth;
-	//	m_minDist = m_frameWidth;
-	//	m_maxDist = 0;
-	//}
 	void VideoProcessorPipeline::UpdateConfigGui(){
 		if (ImGui::Button("Reset Cluster Guess")) {
-			// TODO(jw):
-			// Reset();
+			m_context.ResetOutput();
 		}
 
 		ForEach([](VideoProcessor& processor) {
@@ -64,6 +51,23 @@ namespace Airheads {
 	}
 
 	void VideoProcessorPipeline::UpdateStatsGui() {
+		ImGui::Text("Intercluster Distance: %dpx", m_context.DotsDistPx());
+
+		ImGui::Text("Min distance: %dpx", m_context.MinDotDistPx());
+		ImGui::Text("Max distance: %dpx", m_context.MaxDotDistPx());
+		//if dmdm > dmdm_thresh:
+		//	dm_color = overlay_color
+		//else:
+		//	dm_color = nope_color
+		double dmdm = m_context.MaxDotDistPx() / (double)m_context.MinDotDistPx();
+		//if (dmdm > dmdm_thresh) {
+
+		//}
+
+		//cv2.putText(out_frame, f"Current Dmax/Dmin: {dmdm:.3f}",
+		//	text_position4, cv2.FONT_HERSHEY_SIMPLEX, 2, dm_color, overlay_line_width_pixels)
+		ImGui::Text("Dmax/Dmin: %.3f", dmdm);
+
 		ForEach([](VideoProcessor& processor) {
 			ImGui::Separator();
 			ImGui::Text(processor.Name().c_str());
@@ -73,7 +77,7 @@ namespace Airheads {
 		});
 	}
 
-	void VideoProcessorPipeline::OnFrameDataUpdated() {
+	void VideoProcessorPipeline::FrameDataUpdated() {
 		for (auto& processor : m_processors) {
 			if (processor->isEnabled)
 				processor->ProcessFrame(m_context);
@@ -90,12 +94,24 @@ namespace Airheads {
 		registry.AddProcessor(std::move(DotDiff::Create()));
 	}
 
+	void ProcessingContext::ResetOutput() {
+		m_topDotLoc = { frame.cols / 2, (int)(frame.rows * 0.3) };
+		m_botDotLoc = { frame.cols / 2, (int)(frame.rows * 0.6) };
+		m_dotsDistPx = DistanceBetween(m_topDotLoc, m_botDotLoc);
+		m_minDotsDistPx = std::numeric_limits<int>::max();
+		m_maxDotsDistPx = 0;
+	}
+
+	cv::Point ProcessingContext::ClampLoc(cv::Point pt) {
+		return {
+			std::clamp(pt.x, 0, frame.cols),
+			std::clamp(pt.y, 0, frame.rows)
+		};
+	}
 	void ProcessingContext::SetDotLocs(cv::Point top, cv::Point bot) {
-		// TODO(jw): confirm it's in frame, etc.
-		m_topDotLoc = top;
-		m_botDotLoc = bot;
-
-
+		m_topDotLoc = ClampLoc(top);
+		m_botDotLoc = ClampLoc(bot);
+		
 		//m_interclusterDistPx = DistanceBetween(m_upperClusterLastCoords, m_lowerClusterLastCoords);
 		m_dotsDistPx = DistanceBetween(m_topDotLoc, m_botDotLoc);
 

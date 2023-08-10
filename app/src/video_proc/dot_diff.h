@@ -14,7 +14,7 @@ namespace Airheads {
 
 		const std::string& Name() const override;
 		
-		void StartCapture(int frameWidth, int frameHeight) override;
+		//void StartCapture(int frameWidth, int frameHeight) override;
 
 		void ProcessFrame(ProcessingContext& context) override;
 		
@@ -23,7 +23,7 @@ namespace Airheads {
 
 	private:
 		
-		void Reset();
+		//void Reset();
 
 		// Pixels under value_threshold are rejected.
 		int m_valueThreshold = 93; // 200;

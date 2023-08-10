@@ -19,11 +19,15 @@ namespace Airheads {
 		void SetFrameBGR(int width, int height, unsigned char* data) {
 			frame = {height, width, CV_8UC3, data};
 		}
+		void ClearFrame() {
+			frame = cv::Mat();
+		}
 
 		cv::Mat saturationMap;
 		cv::Mat valueMap;
 		cv::Mat clusterMap;
 
+		void ResetOutput();
 		void SetDotLocs(cv::Point top, cv::Point bot);
 		cv::Point TopDotLoc() { return m_topDotLoc; }
 		cv::Point BotDotLoc() { return m_botDotLoc; }
@@ -32,6 +36,8 @@ namespace Airheads {
 		int MaxDotDistPx() { return m_maxDotsDistPx; }
 
 	private:
+		cv::Point ClampLoc(cv::Point pt);
+
 		cv::Point m_topDotLoc;
 		cv::Point m_botDotLoc;
 		int m_dotsDistPx;
@@ -65,7 +71,7 @@ namespace Airheads {
 		void StopCapture();
 
 		void AddProcessor(VideoProcessorUniquePtr processor);
-		void OnFrameDataUpdated();
+		void FrameDataUpdated();
 		void UpdateConfigGui();
 		void UpdateStatsGui();
 		
