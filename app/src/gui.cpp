@@ -93,7 +93,7 @@ namespace Airheads {
 
 	void Gui::UpdateStatsContent() {
 		ImGui::Text("FPS: %f", ImGui::GetIO().Framerate);
-		ImGui::Separator();
+		// ImGui::Separator();
 
 		if (m_activeCamera != -1) {
 			ImGui::Separator();

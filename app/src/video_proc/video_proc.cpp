@@ -1,5 +1,6 @@
 #include "video_proc.h"
 #include "dot_diff.h"
+#include "results_overlay.h"
 
 #include "resources.h"
 #include "imgui.h"
@@ -42,30 +43,22 @@ namespace Airheads {
 		ForEach([](VideoProcessor& processor) {
 			ImGui::Separator();
 
-			//ImGui::Checkbox(processor.Name().c_str(), &processor.isEnabled);
-			ImGui::Text(processor.Name().c_str());
-				if (processor.isEnabled) {
-					processor.UpdateConfigControls();
-				}
-			});
+			ImGui::Checkbox(processor.Name().c_str(), &processor.isEnabled);
+			processor.UpdateConfigControls();
+		});
 	}
 
 	void VideoProcessorPipeline::UpdateStatsGui() {
+		ImGui::Separator();
 		ImGui::Text("Intercluster Distance: %dpx", m_context.DotsDistPx());
 
 		ImGui::Text("Min distance: %dpx", m_context.MinDotDistPx());
 		ImGui::Text("Max distance: %dpx", m_context.MaxDotDistPx());
+		double dmdm = m_context.MaxDotDistPx() / (double)m_context.MinDotDistPx();
 		//if dmdm > dmdm_thresh:
 		//	dm_color = overlay_color
 		//else:
 		//	dm_color = nope_color
-		double dmdm = m_context.MaxDotDistPx() / (double)m_context.MinDotDistPx();
-		//if (dmdm > dmdm_thresh) {
-
-		//}
-
-		//cv2.putText(out_frame, f"Current Dmax/Dmin: {dmdm:.3f}",
-		//	text_position4, cv2.FONT_HERSHEY_SIMPLEX, 2, dm_color, overlay_line_width_pixels)
 		ImGui::Text("Dmax/Dmin: %.3f", dmdm);
 
 		ForEach([](VideoProcessor& processor) {
@@ -92,6 +85,7 @@ namespace Airheads {
 
 	void LoadProcessors(VideoProcessorPipeline& registry) {
 		registry.AddProcessor(std::move(DotDiff::Create()));
+		registry.AddProcessor(std::move(ResultsOverlay::Create()));
 	}
 
 	void ProcessingContext::ResetOutput() {
@@ -100,6 +94,8 @@ namespace Airheads {
 		m_dotsDistPx = DistanceBetween(m_topDotLoc, m_botDotLoc);
 		m_minDotsDistPx = std::numeric_limits<int>::max();
 		m_maxDotsDistPx = 0;
+		m_topCluster = {};
+		m_botCluster = {};
 	}
 
 	cv::Point ProcessingContext::ClampLoc(cv::Point pt) {
@@ -108,17 +104,24 @@ namespace Airheads {
 			std::clamp(pt.y, 0, frame.rows)
 		};
 	}
-	void ProcessingContext::SetDotLocs(cv::Point top, cv::Point bot) {
-		m_topDotLoc = ClampLoc(top);
-		m_botDotLoc = ClampLoc(bot);
-		
-		//m_interclusterDistPx = DistanceBetween(m_upperClusterLastCoords, m_lowerClusterLastCoords);
-		m_dotsDistPx = DistanceBetween(m_topDotLoc, m_botDotLoc);
+	void ProcessingContext::UpdateClusterResults(ClusterResult top, ClusterResult bot) {
+		m_topCluster = top;
+		m_botCluster = bot;
 
-		//m_minDist = std::min(m_minDist, m_interclusterDistPx);
-		//m_maxDist = std::max(m_maxDist, m_interclusterDistPx);
-		m_minDotsDistPx = std::min(m_minDotsDistPx, m_dotsDistPx);
-		m_maxDotsDistPx = std::max(m_maxDotsDistPx, m_dotsDistPx);
+		if (IsClusterValid(top)) {
+			m_topDotLoc = ClampLoc(top.center);
+		}
+		if (IsClusterValid(bot)) {
+			m_botDotLoc = ClampLoc(bot.center);
+		}
+
+		// Only update measurements when both clusters are valid
+		if (IsClusterValid(top) && IsClusterValid(bot)) {
+			m_dotsDistPx = DistanceBetween(m_topDotLoc, m_botDotLoc);
+
+			m_minDotsDistPx = std::min(m_minDotsDistPx, m_dotsDistPx);
+			m_maxDotsDistPx = std::max(m_maxDotsDistPx, m_dotsDistPx);
+		}
 	}
 
 }

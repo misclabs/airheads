@@ -18,22 +18,22 @@ namespace Airheads {
 	//	return (int)sqrt(dx * dx + dy * dy);
 	//}
 
-	struct Bounds {
-		cv::Point topLeft;
-		cv::Point bottomRight;
+	//struct Bounds {
+	//	cv::Point topLeft;
+	//	cv::Point bottomRight;
 
-		void Clamp(cv::Point& pt) {
-			if (pt.x < topLeft.x)
-				pt.x = topLeft.x;
-			else if (pt.x > bottomRight.x)
-				pt.x = bottomRight.x;
+	//	void Clamp(cv::Point& pt) {
+	//		if (pt.x < topLeft.x)
+	//			pt.x = topLeft.x;
+	//		else if (pt.x > bottomRight.x)
+	//			pt.x = bottomRight.x;
 
-			if (pt.y < topLeft.y)
-				pt.y = topLeft.y;
-			else if (pt.y > bottomRight.y)
-				pt.y = bottomRight.y;
-		}
-	};
+	//		if (pt.y < topLeft.y)
+	//			pt.y = topLeft.y;
+	//		else if (pt.y > bottomRight.y)
+	//			pt.y = bottomRight.y;
+	//	}
+	//};
 
 	static const std::string g_dotDiffName {"Dot Diff"};
 
@@ -44,20 +44,6 @@ namespace Airheads {
 	const std::string& DotDiff::Name() const {
 		return g_dotDiffName;
 	}
-
-	//void DotDiff::StartCapture(int frameWidth, int frameHeight) {
-	//	m_frameWidth = frameWidth;
-	//	m_frameHeight = frameHeight;
-	//	Reset();
-	//}
-
-	//void DotDiff::Reset() {
-	//	m_upperClusterLastCoords = { m_frameWidth / 2, (int)(m_frameHeight * 0.3) };
-	//	m_lowerClusterLastCoords = { m_frameWidth / 2, (int)(m_frameHeight * 0.6) };
-	//	m_interclusterDistPx = m_frameWidth;
-	//	m_minDist = m_frameWidth;
-	//	m_maxDist = 0;
-	//}
 
 	void DotDiff::ProcessFrame(ProcessingContext& context) {
 
@@ -93,104 +79,36 @@ namespace Airheads {
 
 		int max_seek_radius = (int)std::max(100.0, 0.65 * context.DotsDistPx()); // m_interclusterDistPx);
 
-		cv::Point upper_cluster_seed;
-		bool foundU = Cluster::FindSeed(context.clusterMap,
-			context.TopDotLoc(), //m_upperClusterLastCoords, 
-			(int)inv_thresh, max_seek_radius,
-			upper_cluster_seed);
+		auto getCluster = [&](cv::Point seedGuess) {
+			ClusterResult result;
+			cv::Point seed;
+			bool foundU = Cluster::FindSeed(context.clusterMap,
+				seedGuess, //m_upperClusterLastCoords, 
+				(int)inv_thresh, max_seek_radius,
+				seed);
+			//Cluster::Cluster cluster_upper;
+			if (foundU) {
+				Cluster::Cluster cluster_upper = Cluster::GrowCluster(context.clusterMap, seed, (uchar)inv_thresh, m_clusterColor, context.m_maxClusterSizePx);
+				//m_upperClusterLastCoords = cluster_upper.get_center();
+				//frameBounds.Clamp(m_upperClusterLastCoords);
+				result.center = cluster_upper.get_center();
+				result.size = cluster_upper.N;
+			} else {
+				result.center = seed;
+			}
 
-		cv::Point lower_cluster_seed;
-		bool foundL = Cluster::FindSeed(context.clusterMap,
-			context.BotDotLoc(), //m_lowerClusterLastCoords,
-			(int)inv_thresh, max_seek_radius,
-			lower_cluster_seed
-		);
+			return result;
+		};
 
-		Bounds frameBounds = { {0, 0}, {context.frame.cols, context.frame.rows} };
-		Cluster::Cluster cluster_upper;
-		if (foundU) {
-			cluster_upper = Cluster::GrowCluster(context.clusterMap, upper_cluster_seed, (uchar)inv_thresh, m_clusterColor, m_maxClusterSizePx);
-			//m_upperClusterLastCoords = cluster_upper.get_center();
-			//frameBounds.Clamp(m_upperClusterLastCoords);
-		}
+		ClusterResult upperClusterResult = getCluster(context.TopDotLoc());
+		ClusterResult lowerClusterResult = getCluster(context.BotDotLoc());
 
-		Cluster::Cluster cluster_lower;
-		if (foundL) {
-			cluster_lower = Cluster::GrowCluster(context.clusterMap, lower_cluster_seed, (uchar)inv_thresh, m_clusterColor, m_maxClusterSizePx);
-			//m_lowerClusterLastCoords = cluster_lower.get_center();
-			//frameBounds.Clamp(m_lowerClusterLastCoords);
-		}
-
-		cv::Point topDotLoc = [&] {
-			if (foundU && cluster_upper.N > 2)
-				return cluster_upper.get_center();
-
-			return context.TopDotLoc();
-		}();
-		cv::Point botDotLoc = [&] {
-			if (foundL && cluster_lower.N > 2)
-				return cluster_lower.get_center();
-
-			return context.BotDotLoc();
-		}();
-		context.SetDotLocs(topDotLoc, botDotLoc);
-
-		//#### DECORATIONS ####
-		if (foundU && cluster_upper.N > 2) {
-			int dotRadius = (int)(2 + 16.0 * cluster_upper.N / m_maxClusterSizePx);
-			cv::circle(context.frame, context.TopDotLoc(), dotRadius, cv::Scalar(0, 255, 0), cv::FILLED, cv::LINE_8);
-		}
-
-		if (foundL && cluster_lower.N > 2) {
-			int dotRadius = (int)(2 + 16.0 * cluster_lower.N / m_maxClusterSizePx);
-			cv::circle(context.frame, context.BotDotLoc(), dotRadius, cv::Scalar(0, 0, 255), cv::FILLED, cv::LINE_8);
-		}
-
-		if (foundU && foundL && cluster_upper.N > 2 && cluster_lower.N > 2) {
-			// TODO(jw): todo this we need to add some cluster info to context
-			//m_interclusterDistPx = DistanceBetween(m_upperClusterLastCoords, m_lowerClusterLastCoords);
-			
-			//m_minDist = std::min(m_minDist, m_interclusterDistPx);
-			//m_maxDist = std::max(m_maxDist, m_interclusterDistPx);
-		
-			//int overlay_line_width_pixels = 2;
-			//cv::line(context.frame, m_upperClusterLastCoords, m_lowerClusterLastCoords, cv::Scalar(0, 255, 0), overlay_line_width_pixels);
-		}
+		context.UpdateClusterResults(upperClusterResult, lowerClusterResult);
 	}
 
 	void DotDiff::UpdateConfigControls() {
 		ImGui::SliderInt("Saturation Threshold", &m_saturationThreshold, 0, 255);
 		ImGui::SliderInt("Value Threshold", &m_valueThreshold, 0, 255);
-		
-		//if (ImGui::Button("Reset Cluster Guess")) {
-		//	Reset();
-		//}
-	}
-
-	void DotDiff::UpdateStatsControls() {
-		//overlay_color = (0, 255, 0) #BGR color.a 4th and final param is possible here.If it's alpha, it doesn't work.
-		//nope_color = (255, 255, 255)
-
-		//ImGui::Text("Intercluster Distance: %dpx", m_interclusterDistPx);
-
-		//ImGui::Text("Min distance: %dpx", m_minDist);
-		//ImGui::Text("Max distance: %dpx", m_maxDist);
-		////if dmdm > dmdm_thresh:
-		////	dm_color = overlay_color
-		////else:
-		////	dm_color = nope_color
-		//double dmdm = m_maxDist / (double)m_minDist;
-		////if (dmdm > dmdm_thresh) {
-
-		////}
-
-		////cv2.putText(out_frame, f"Current Dmax/Dmin: {dmdm:.3f}",
-		////	text_position4, cv2.FONT_HERSHEY_SIMPLEX, 2, dm_color, overlay_line_width_pixels)
-		//ImGui::Text("Dmax/Dmin: %.3f", dmdm);
-
-		//#TODO make printing this optional
-		//#    print(f"   cluster_upper N={cluster_upper.N }, cluster_lower N={cluster_lower.N}")
-		//#    print(f"   cu = {upper_cluster_last_coords[0] },{upper_cluster_last_coords[1] }, cl = {lower_cluster_last_coords[0] },{lower_cluster_last_coords[1] }, dist = {intercluster_distance_pixels:.1f} ")
 	}
 
 }

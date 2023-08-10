@@ -10,6 +10,11 @@
 
 namespace Airheads {
 
+	struct ClusterResult {
+		cv::Point center = { 0, 0 };
+		int size = 0;
+	};
+
 	struct ProcessingContext {
 		// frame is input from the camera and displayed as the end result.
 		//   - It may be written to by a VideoProcessor in the pipeline.
@@ -28,21 +33,36 @@ namespace Airheads {
 		cv::Mat clusterMap;
 
 		void ResetOutput();
-		void SetDotLocs(cv::Point top, cv::Point bot);
-		cv::Point TopDotLoc() { return m_topDotLoc; }
-		cv::Point BotDotLoc() { return m_botDotLoc; }
-		int DotsDistPx() { return m_dotsDistPx; }
-		int MinDotDistPx() { return m_minDotsDistPx; }
-		int MaxDotDistPx() { return m_maxDotsDistPx; }
+		void UpdateClusterResults(ClusterResult top, ClusterResult bot);
+
+		cv::Point TopDotLoc() const { return m_topDotLoc; }
+		cv::Point BotDotLoc() const { return m_botDotLoc; }
+		int DotsDistPx() const { return m_dotsDistPx; }
+		int MinDotDistPx() const { return m_minDotsDistPx; }
+		int MaxDotDistPx() const { return m_maxDotsDistPx; }
+		ClusterResult TopCluster() const { return m_topCluster; }
+		ClusterResult BotCluster() const { return m_botCluster; }
+
+		bool IsClusterValid(ClusterResult cluster) {
+			return cluster.size > m_minClusterSize && cluster.size < m_maxClusterSizePx - 1;
+		}
+
+		int m_maxClusterSizePx = 4096;
+		int m_minClusterSize = 2;
 
 	private:
 		cv::Point ClampLoc(cv::Point pt);
 
 		cv::Point m_topDotLoc;
 		cv::Point m_botDotLoc;
+
+		ClusterResult m_topCluster;
+		ClusterResult m_botCluster;
+
 		int m_dotsDistPx;
 		int m_minDotsDistPx;
 		int m_maxDotsDistPx;
+		
 	};
 	
 	class VideoProcessor {

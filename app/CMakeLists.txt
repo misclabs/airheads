@@ -20,6 +20,7 @@ target_sources(${NAME} PRIVATE
 	src/video_proc/video_proc.cpp src/video_proc/video_proc.h
 	src/video_proc/dot_diff.cpp src/video_proc/dot_diff.h
 	src/video_proc/cluster.cpp src/video_proc/cluster.h
+	src/video_proc/results_overlay.cpp src/video_proc/results_overlay.h
 )
 
 # Define set of OS specific files to include

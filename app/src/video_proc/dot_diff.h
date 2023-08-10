@@ -19,7 +19,7 @@ namespace Airheads {
 		void ProcessFrame(ProcessingContext& context) override;
 		
 		void UpdateConfigControls() override;
-		void UpdateStatsControls() override;
+		//void UpdateStatsControls() override;
 
 	private:
 		
@@ -38,7 +38,7 @@ namespace Airheads {
 		//int m_frameHeight;
 		double dmdm_thresh = 1.08;
 		cv::Mat hsv;
-		int m_maxClusterSizePx = 4096;
+		//int m_maxClusterSizePx = 4096;
 	};
 
 }
