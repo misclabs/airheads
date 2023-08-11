@@ -2,14 +2,23 @@
 
 #include "opencv2/core.hpp"
 
+#include <vector>
+
 namespace Airheads::Cluster {
 
 	bool FindSeed(cv::Mat& img, cv::Point seed_guess, int minval, int max_radius, cv::Point& out_point);
 
-	struct Cluster {
+	struct ClusterPixel {
+		cv::Point loc;
+		uchar value;
+	};
 
-		Cluster() {};
-		Cluster(std::vector<int>& X, std::vector<int>& Y, std::vector<uchar>& W, int _N);
+	struct ClusterMetrics {
+
+		static ClusterMetrics FromPixels(std::vector<ClusterPixel>& accepted);
+		static ClusterMetrics FromWeightedPixels(std::vector<ClusterPixel>& accepted);
+
+		//ClusterMetrics() {};
 
 		//def get_center(self,use_weighted_averages = False):
 		//	#returns (y,x) coordinates. y,x because that can be used to index the image and get pixel values.
@@ -17,19 +26,20 @@ namespace Airheads::Cluster {
 		//		return (round(self.YWavg), round(self.XWavg))
 		//	else:
 		//		return (round(self.Yavg), round(self.Xavg))
-		cv::Point get_center() {
-			return cv::Point((int)round(Xavg), (int)round(Yavg));
-		}
+		//cv::Point get_center() {
+		//	return cv::Point((int)round(Xavg), (int)round(Yavg));
+		//}
 
-		int N = -1;
-		float Ymin = -1;
-		float Ymax = -1;
-		float Xmin = -1;
-		float Xmax = -1;
-		//float Wmin = -1;
-		//float Wmax = -1;
-		float Yavg = -1;
-		float Xavg = -1;
+		int sizePx = 0;
+		cv::Point center;
+		//float Ymin = 0;
+		//float Ymax = 0;
+		//float Xmin = 0;
+		//float Xmax = 0;
+		////float Wmin = -1;
+		////float Wmax = -1;
+		//float Yavg = 0;
+		//float Xavg = 0;
 		//float Wavg = -1;
 		//float Ystdev = -1;
 		//float Xstdev = -1;
@@ -40,6 +50,6 @@ namespace Airheads::Cluster {
 		//float XWstdev = -1;
 	};
 
-	Cluster GrowCluster(cv::Mat& img, cv::Point seed, uchar minval, int m_clusterColor, int maxIterations);
+	ClusterMetrics ClusterFill(cv::Mat& img, cv::Point seed, uchar minval, int m_clusterColor, int maxIterations);
 
 }

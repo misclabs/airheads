@@ -36,9 +36,9 @@ namespace Airheads {
 				context.InvertedValueThreshold(), maxSeekRadius,
 				seed);
 			if (foundSeed) {
-				Cluster::Cluster cluster = Cluster::GrowCluster(context.clusterMap, seed, (uchar)context.InvertedValueThreshold(), m_clusterColor, context.maxClusterSizePx);
-				result.center = cluster.get_center();
-				result.size = cluster.N;
+				Cluster::ClusterMetrics cluster = Cluster::ClusterFill(context.clusterMap, seed, (uchar)context.InvertedValueThreshold(), m_clusterColor, context.maxClusterSizePx);
+				result.center = cluster.center;
+				result.size = cluster.sizePx;
 			} else {
 				result.center = seed;
 			}
