@@ -34,8 +34,17 @@ namespace Airheads {
 				context.InvertedValueThreshold(), 
 				maxSeekRadius);
 			if (seed) {
-				Cluster::ClusterMetrics cluster = Cluster::ClusterFill(context.clusterMap, *seed, (uchar)context.InvertedValueThreshold(), m_clusterColor, context.maxClusterSizePx);
-				return ClusterResult{ cluster.center, cluster.sizePx };
+				m_pixels.clear();
+				Cluster::ClusterFill(context.clusterMap, *seed, (uchar)context.InvertedValueThreshold(), 
+					m_clusterColor, context.maxClusterSizePx, m_pixels);
+
+				Cluster::ClusterMetrics metrics;
+				if (m_centerStrat == CenterStrategy::WeightedAverage)
+					metrics = Cluster::ClusterMetrics::FromWeightedPixels(m_pixels);
+				else
+					metrics = Cluster::ClusterMetrics::FromPixels(m_pixels);
+
+				return ClusterResult{ metrics.center, metrics.sizePx };
 			} 
 
 			return ClusterResult{ seedGuess };
@@ -45,6 +54,25 @@ namespace Airheads {
 		ClusterResult lowerClusterResult = getCluster(context.BotDotLoc());
 
 		context.UpdateClusterResults(upperClusterResult, lowerClusterResult);
+	}
+
+	void ClusterProc::UpdateConfigControls() {
+		const char* stratNames[(int)CenterStrategy::StrategyCount] = {"Average", "Weighted Average"};
+		const char* previewName = stratNames[(int)m_centerStrat];
+
+		if (ImGui::BeginCombo("Find Center Strategy", previewName, 0)) {
+			for (int i = 0; i < (int)CenterStrategy::StrategyCount; ++i) {
+				const bool is_selected = ((int)m_centerStrat == i);
+				if (ImGui::Selectable(stratNames[i], is_selected))
+					m_centerStrat = (CenterStrategy)i;
+
+				// Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
+				if (is_selected)
+					ImGui::SetItemDefaultFocus();
+			}
+			ImGui::EndCombo();
+		}
+
 	}
 
 }

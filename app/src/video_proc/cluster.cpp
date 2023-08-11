@@ -88,123 +88,70 @@ namespace Airheads::Cluster {
 		}
 
 		const int step = 5;
-		//for R in range(step, max_radius + 1, step) :
 		for (int R = step; R < max_radius + 1; R += step) {
 			//#limit values of the squares for this Radius R
-			//y0 = max(0, seed_guess[0] - R)
-			//x0 = max(0, seed_guess[1] - R)
-			//y1 = min(imgH, seed_guess[0] + R + 1)
-			//x1 = min(imgW, seed_guess[1] + R + 1)
 			int y0 = std::max(0, seed_guess.y - R);
 			int x0 = std::max(0, seed_guess.x - R);
-			//int y1 = std::min(imgH, seed_guess.y + R + 1);
-			//int x1 = std::min(imgW, seed_guess.x + R + 1);
 			int y1 = std::min(img.rows, seed_guess.y + R + 1);
 			int x1 = std::min(img.cols, seed_guess.x + R + 1);
 
 			//#Look North
-			//y = y0
-			//for x in range(x0, x1, step) :
 			int y = y0;
 			for (int x = x0; x < x1; x += step) {
-				//#if is_cluster(img[y][x], minval):
-				//if img[y][x] >= minval:
-				//    return True, (y,x)
-				if (img.at<uchar>(y, x) >= minval) {
+				if (img.at<uchar>(y, x) >= minval)
 					return cv::Point { x, y };
-				}
 			}
 
 			//#Look South    
-			//y = y1-1
-			//for x in range(x0, x1, step):
 			cv::Point pt;
 			pt.y = y1 - 1;
 			for (pt.x = x0; pt.x < x1; pt.x += step) {
-				//#if is_cluster(img[y][x], minval):
-				//if img[y][x] >= minval:
-				//    return True, (y,x)
-				if (img.at<uchar>(pt) >= minval) {
+				if (img.at<uchar>(pt) >= minval)
 					return pt;
-				}
 			}
 
 			//#Look East
-			//x = x0
-			//for y in range(y0, y1, step) :
 			pt.x = x0;
 			for (pt.y = y0; pt.y < y1; pt.y += step) {
-				//#if is_cluster(img[y][x], minval):
-				//if img[y][x] >= minval:
-				//	return True, (y,x)
-				if (img.at<uchar>(pt) >= minval) {
+				if (img.at<uchar>(pt) >= minval)
 					return pt;
-				}
 			}
 
 			//#Look West
-			//x = x1-1
-			//for y in range(y0, y1, step):
 			pt.x = x1 - 1;
 			for (pt.y = y0; pt.y < y1; pt.y += step) {
-				//#if is_cluster(img[y][x], minval):
-				//if img[y][x] >= minval:
-				//	return True, (y,x)
-				if (img.at<uchar>(pt) >= minval) {
+				if (img.at<uchar>(pt) >= minval)
 					return pt;
-				}
 			}
 		}
 
 		return {};
 	}
 
-	ClusterMetrics ClusterFill(cv::Mat& img, cv::Point seed, uchar minval, int clusterColor, int maxSizePx) {
-		if (img.at<uchar>(seed) < minval) {
-			return ClusterMetrics();
-		}
+	void ClusterFill(cv::Mat& img, cv::Point seed, uchar minval, int clusterColor, int maxSizePx, std::vector<ClusterPixel>& accepted) {
+		accepted.clear();
+
+		if (img.at<uchar>(seed) < minval)
+			return;
 
 		int imgW = img.cols;
 		int imgH = img.rows;
-		//#accepted pixels must be light colored, with value >= minval
-		//N = 0
-		int N = 0;
-		//int y = seed.y;
-		//int x = seed.x;
-		cv::Point pt = seed;
-		//std::vector<int> Y;
-		//std::vector<int> X;
-		//std::vector<uchar> W;
-		std::vector<ClusterPixel> accepted;
 
-		//cluster_color = max(0, min(cluster_color, minval - 1))  #new color of clustered pixels, must be less than minval(~162)
+		//#accepted pixels must be light colored, with value >= minval
+		cv::Point pt = seed;
 		clusterColor = std::clamp(clusterColor, 0, minval - 1);
 
-		//todo_list = [seed] # a fifo
 		std::queue<cv::Point> todo_list;
 		todo_list.push(seed);
 
-		//img[y, x] = cluster_color
 		img.at<uchar>(pt) = (uchar)clusterColor;
 
 		while (todo_list.size() != 0) {
-			if (accepted.size() >= maxSizePx) {
-				//return ClusterMetrics::FromPixels(accepted);
-				return ClusterMetrics::FromWeightedPixels(accepted);
-			}
+			if (accepted.size() >= maxSizePx)
+				return;
 
-			//N += 1
-			//y, x = todo_list[0] #get front item
-			//Y.append(y)
-			//X.append(x)
-			//W.append(img[y, x])
-			//N += 1;
 			pt = todo_list.front();
-			//Y.push_back(pt.y);
-			//X.push_back(pt.x);
-			//W.push_back(img.at<uchar>(pt));
 			accepted.emplace_back(pt, img.at<uchar>(pt));
-
 
 			// ### do look_at_neighbors_swiss
 			int yp = pt.y + 1;
@@ -238,8 +185,7 @@ namespace Airheads::Cluster {
 			todo_list.pop();
 		}
 
-		//return ClusterMetrics::FromPixels(accepted);
-		return ClusterMetrics::FromWeightedPixels(accepted);
+		return;
 	}
 
 }
