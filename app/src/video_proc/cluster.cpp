@@ -4,8 +4,6 @@
 #include <queue>
 
 namespace Airheads::Cluster {
-	//constexpr int MAX_CLUSTER_ITERATIONS = 4096;
-
 	Cluster::Cluster(std::vector<int>& X, std::vector<int>& Y, std::vector<uchar>& W, int _N) {
 		N = _N;
 

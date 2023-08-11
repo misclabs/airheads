@@ -16,21 +16,8 @@ namespace Airheads {
 	};
 
 	struct ProcessingContext {
-		// frame is input from the camera and displayed as the end result.
-		//   - It may be written to by a VideoProcessor in the pipeline.
-		//   - It is the only Mat that doesn't own it's data
-		//   - Data format is BGR, 8-bits per channel (0-255)
-		cv::Mat frame;
-		void SetFrameBGR(int width, int height, unsigned char* data) {
-			frame = {height, width, CV_8UC3, data};
-		}
-		void ClearFrame() {
-			frame = cv::Mat();
-		}
-
-		cv::Mat saturationMap;
-		cv::Mat valueMap;
-		cv::Mat clusterMap;
+		void SetFrameBGR(int width, int height, unsigned char* data);
+		void ClearFrame();
 
 		void ResetOutput();
 		void UpdateClusterResults(ClusterResult top, ClusterResult bot);
@@ -43,12 +30,25 @@ namespace Airheads {
 		ClusterResult TopCluster() const { return m_topCluster; }
 		ClusterResult BotCluster() const { return m_botCluster; }
 
-		bool IsClusterValid(ClusterResult cluster) {
-			return cluster.size > m_minClusterSize && cluster.size < m_maxClusterSizePx - 1;
-		}
+		int InvertedValueThreshold();
+		bool IsClusterValid(ClusterResult cluster);
 
-		int m_maxClusterSizePx = 4096;
-		int m_minClusterSize = 2;
+		// frame is input from the camera and displayed as the end result.
+		//   - It may be written to by a VideoProcessor in the pipeline.
+		//   - It is the only Mat that doesn't own it's data
+		//   - Data format is BGR, 8-bits per channel (0-255)
+		cv::Mat frame;
+
+		cv::Mat saturationMap;
+		cv::Mat valueMap;
+		cv::Mat clusterMap;
+
+		int minClusterSizePx = 2;
+		int maxClusterSizePx = 4096;
+
+		int valueThreshold = 93; // 200;
+		int saturationThreshold = 190;  // 65;
+
 
 	private:
 		cv::Point ClampLoc(cv::Point pt);
@@ -61,10 +61,30 @@ namespace Airheads {
 
 		int m_dotsDistPx;
 		int m_minDotsDistPx;
-		int m_maxDotsDistPx;
-		
+		int m_maxDotsDistPx;		
 	};
 	
+	inline void ProcessingContext::SetFrameBGR(int width, int height, unsigned char* data) {
+		frame = { height, width, CV_8UC3, data };
+	}
+	
+	inline void ProcessingContext::ClearFrame() {
+		frame = cv::Mat();
+	}
+
+	inline int ProcessingContext::InvertedValueThreshold() {
+		auto invertedThreshold = 255 - valueThreshold;
+		if (invertedThreshold < 1)
+			return 1;
+
+		return invertedThreshold;
+	}
+
+	inline bool ProcessingContext::IsClusterValid(ClusterResult cluster) {
+		return cluster.size > minClusterSizePx && cluster.size < maxClusterSizePx - 1;
+	}
+
+
 	class VideoProcessor {
 	public:
 

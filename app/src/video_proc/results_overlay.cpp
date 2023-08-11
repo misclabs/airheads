@@ -18,13 +18,13 @@ namespace Airheads {
 		const int overlayLineWidthPx = 2;
 		auto topCluster = context.TopCluster();
 		if (context.IsClusterValid(topCluster)) {
-			int dotRadius = (int)(2 + 16.0 * topCluster.size / context.m_maxClusterSizePx);
+			int dotRadius = (int)(2 + 16.0 * topCluster.size / context.maxClusterSizePx);
 			cv::circle(context.frame, topCluster.center, dotRadius, cv::Scalar(0, 255, 0), overlayLineWidthPx, cv::LINE_8);
 		}
 
 		auto botCluster = context.BotCluster();
 		if (context.IsClusterValid(botCluster)) {
-			int dotRadius = (int)(2 + 16.0 * botCluster.size / context.m_maxClusterSizePx);
+			int dotRadius = (int)(2 + 16.0 * botCluster.size / context.maxClusterSizePx);
 			cv::circle(context.frame, botCluster.center, dotRadius, cv::Scalar(0, 255, 0), overlayLineWidthPx, cv::LINE_8);
 		}
 

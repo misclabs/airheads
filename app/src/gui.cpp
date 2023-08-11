@@ -5,9 +5,7 @@
 #include "log.h"
 
 #include "imgui.h"
-//#include "opencv2/core.hpp"
 
-//#include <algorithm>
 #include <cassert>
 
 namespace Airheads {
@@ -93,7 +91,6 @@ namespace Airheads {
 
 	void Gui::UpdateStatsContent() {
 		ImGui::Text("FPS: %f", ImGui::GetIO().Framerate);
-		// ImGui::Separator();
 
 		if (m_activeCamera != -1) {
 			ImGui::Separator();
@@ -205,8 +202,6 @@ namespace Airheads {
 		if (pixels == nullptr)
 			pixels = m_videoInput.getPixels(m_activeCamera, false, true);
 
-		//m_processingContext.SetFrameBGR(rect.w, rect.h, pixels);
-		//m_processorPipeline.ProcessFrame(m_processingContext);
 		m_processorPipeline.FrameDataUpdated();
 
 		int result = SDL_UpdateTexture(m_cameraRenderTex,

@@ -1,5 +1,6 @@
 #include "video_proc.h"
-#include "dot_diff.h"
+#include "cluster_map_proc.h"
+#include "cluster_proc.h"
 #include "results_overlay.h"
 
 #include "resources.h"
@@ -36,6 +37,9 @@ namespace Airheads {
 	}
 
 	void VideoProcessorPipeline::UpdateConfigGui(){
+		ImGui::SliderInt("Saturation Threshold", &m_context.saturationThreshold, 0, 255);
+		ImGui::SliderInt("Value Threshold", &m_context.valueThreshold, 0, 255);
+
 		if (ImGui::Button("Reset Cluster Guess")) {
 			m_context.ResetOutput();
 		}
@@ -55,6 +59,7 @@ namespace Airheads {
 		ImGui::Text("Min distance: %dpx", m_context.MinDotDistPx());
 		ImGui::Text("Max distance: %dpx", m_context.MaxDotDistPx());
 		double dmdm = m_context.MaxDotDistPx() / (double)m_context.MinDotDistPx();
+		//double dmdm_thresh = 1.08;
 		//if dmdm > dmdm_thresh:
 		//	dm_color = overlay_color
 		//else:
@@ -84,7 +89,8 @@ namespace Airheads {
 	}
 
 	void LoadProcessors(VideoProcessorPipeline& registry) {
-		registry.AddProcessor(std::move(DotDiff::Create()));
+		registry.AddProcessor(std::move(ClusterMapProc::Create()));
+		registry.AddProcessor(std::move(ClusterProc::Create()));
 		registry.AddProcessor(std::move(ResultsOverlay::Create()));
 	}
 
