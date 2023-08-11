@@ -81,11 +81,10 @@ namespace Airheads::Cluster {
 		return metrics;
 	}
 
-	bool FindSeed(cv::Mat& img, cv::Point seed_guess, int minval, int max_radius, cv::Point& out_point) {
+	std::optional<cv::Point> FindSeed(cv::Mat& img, cv::Point seed_guess, int minval, int max_radius) {
 
 		if (img.at<uchar>(seed_guess) >= minval) {
-			out_point = seed_guess;
-			return true;
+			return seed_guess;
 		}
 
 		const int step = 5;
@@ -112,8 +111,7 @@ namespace Airheads::Cluster {
 				//if img[y][x] >= minval:
 				//    return True, (y,x)
 				if (img.at<uchar>(y, x) >= minval) {
-					out_point = { x, y };
-					return true;
+					return cv::Point { x, y };
 				}
 			}
 
@@ -127,8 +125,7 @@ namespace Airheads::Cluster {
 				//if img[y][x] >= minval:
 				//    return True, (y,x)
 				if (img.at<uchar>(pt) >= minval) {
-					out_point = pt;
-					return true;
+					return pt;
 				}
 			}
 
@@ -141,8 +138,7 @@ namespace Airheads::Cluster {
 				//if img[y][x] >= minval:
 				//	return True, (y,x)
 				if (img.at<uchar>(pt) >= minval) {
-					out_point = pt;
-					return true;
+					return pt;
 				}
 			}
 
@@ -155,14 +151,12 @@ namespace Airheads::Cluster {
 				//if img[y][x] >= minval:
 				//	return True, (y,x)
 				if (img.at<uchar>(pt) >= minval) {
-					out_point = pt;
-					return true;
+					return pt;
 				}
 			}
 		}
 
-		out_point = { -1, -1 };
-		return false;
+		return {};
 	}
 
 	ClusterMetrics ClusterFill(cv::Mat& img, cv::Point seed, uchar minval, int clusterColor, int maxSizePx) {

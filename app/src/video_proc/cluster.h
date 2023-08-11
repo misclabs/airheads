@@ -3,10 +3,11 @@
 #include "opencv2/core.hpp"
 
 #include <vector>
+#include <optional>
 
 namespace Airheads::Cluster {
 
-	bool FindSeed(cv::Mat& img, cv::Point seed_guess, int minval, int max_radius, cv::Point& out_point);
+	std::optional<cv::Point> FindSeed(cv::Mat& img, cv::Point seed_guess, int minval, int max_radius);
 
 	struct ClusterPixel {
 		cv::Point loc;

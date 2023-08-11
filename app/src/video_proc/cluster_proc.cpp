@@ -29,21 +29,16 @@ namespace Airheads {
 		int maxSeekRadius = (int)std::max(100.0, 0.65 * context.DotsDistPx());
 
 		auto getCluster = [&](cv::Point seedGuess) {
-			ClusterResult result;
-			cv::Point seed;
-			bool foundSeed = Cluster::FindSeed(context.clusterMap,
+			auto seed = Cluster::FindSeed(context.clusterMap,
 				seedGuess,
-				context.InvertedValueThreshold(), maxSeekRadius,
-				seed);
-			if (foundSeed) {
-				Cluster::ClusterMetrics cluster = Cluster::ClusterFill(context.clusterMap, seed, (uchar)context.InvertedValueThreshold(), m_clusterColor, context.maxClusterSizePx);
-				result.center = cluster.center;
-				result.size = cluster.sizePx;
-			} else {
-				result.center = seed;
-			}
+				context.InvertedValueThreshold(), 
+				maxSeekRadius);
+			if (seed) {
+				Cluster::ClusterMetrics cluster = Cluster::ClusterFill(context.clusterMap, *seed, (uchar)context.InvertedValueThreshold(), m_clusterColor, context.maxClusterSizePx);
+				return ClusterResult{ cluster.center, cluster.sizePx };
+			} 
 
-			return result;
+			return ClusterResult{ seedGuess };
 		};
 
 		ClusterResult upperClusterResult = getCluster(context.TopDotLoc());
