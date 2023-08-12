@@ -1,7 +1,6 @@
 #include "video_proc.h"
 #include "cluster_map_proc.h"
 #include "cluster_proc.h"
-#include "results_overlay.h"
 
 #include "resources.h"
 #include "imgui.h"
@@ -75,7 +74,7 @@ namespace Airheads {
 		});
 	}
 
-	void VideoProcessorPipeline::FrameDataUpdated() {
+	void VideoProcessorPipeline::ProcessFrame() {
 		for (auto& processor : m_processors) {
 			if (processor->isEnabled)
 				processor->ProcessFrame(m_context);
@@ -91,7 +90,6 @@ namespace Airheads {
 	void LoadProcessors(VideoProcessorPipeline& registry) {
 		registry.AddProcessor(std::move(ClusterMapProc::Create()));
 		registry.AddProcessor(std::move(ClusterProc::Create()));
-		registry.AddProcessor(std::move(ResultsOverlay::Create()));
 	}
 
 	void ProcessingContext::ResetOutput() {

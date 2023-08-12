@@ -111,7 +111,7 @@ namespace Airheads {
 		void StopCapture();
 
 		void AddProcessor(VideoProcessorUniquePtr processor);
-		void FrameDataUpdated();
+		void ProcessFrame();
 		void UpdateConfigGui();
 		void UpdateStatsGui();
 		

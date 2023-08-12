@@ -148,18 +148,52 @@ namespace Airheads {
 
 			ImVec2 cameraSize{ (float)m_videoInput.getWidth(m_activeCamera), (float)m_videoInput.getHeight(m_activeCamera) };
 			ImVec2 availSize = ImGui::GetContentRegionAvail();
-			ImVec2 renderSize = [&] {
-				if (cameraSize.x / cameraSize.y > availSize.x / availSize.y) {
-					// fit width
-					float scale = availSize.x / cameraSize.x;
-					return ImVec2{ cameraSize.x * scale, cameraSize.y * scale };
-				}
+			float scale;
+			ImVec2 renderSize;
+			if (cameraSize.x / cameraSize.y > availSize.x / availSize.y) {
+				// fit width
+				scale = availSize.x / cameraSize.x;
+				renderSize = { cameraSize.x * scale, cameraSize.y * scale };
+			} else {
 				// fit height
-				float scale = availSize.y / cameraSize.y;
-				return ImVec2{ cameraSize.x * scale, cameraSize.y * scale };
-			}();
-			
+				scale = availSize.y / cameraSize.y;
+				renderSize = { cameraSize.x * scale, cameraSize.y * scale };
+			}
+			ImVec2 cursor = ImGui::GetCursorScreenPos();
+
 			ImGui::Image(m_cameraRenderTex, renderSize);
+
+			ImDrawList* draw = ImGui::GetWindowDrawList();
+
+			ImU32 clusterColor = IM_COL32(0, 255, 255, 255/3 * 2);
+			ImU32 dotColor = IM_COL32(0, 255, 0, 255/3 * 2);
+			float dotRadius = 6.0f;
+
+			auto& context = m_processorPipeline.Context();
+			auto topCluster = context.TopCluster();
+			if (context.IsClusterValid(topCluster)) {
+				ImVec2 center = { cursor.x + topCluster.center.x * scale, cursor.y + topCluster.center.y * scale };
+				float radius = dotRadius + dotRadius*2 * topCluster.size / context.maxClusterSizePx;
+				draw->AddCircle(center, radius, clusterColor);
+			}
+
+			auto botCluster = context.BotCluster();
+			if (context.IsClusterValid(botCluster)) {
+				ImVec2 center = { cursor.x + botCluster.center.x * scale, cursor.y + botCluster.center.y * scale };
+				float radius = dotRadius + dotRadius*2 * botCluster.size / context.maxClusterSizePx;
+				draw->AddCircle(center, radius, clusterColor);
+			}
+
+			float lineWidth = 2.0f;
+			ImVec2 topDot = { cursor.x + context.TopDotLoc().x * scale, cursor.y + context.TopDotLoc().y * scale };
+			draw->AddCircleFilled(topDot, dotRadius, dotColor);
+
+			ImVec2 botDot = { cursor.x + context.BotDotLoc().x * scale, cursor.y + context.BotDotLoc().y * scale };
+			draw->AddCircleFilled(botDot,	dotRadius, dotColor);
+
+			if (context.IsClusterValid(topCluster) && context.IsClusterValid(botCluster)) {
+				draw->AddLine(topDot, botDot, dotColor, lineWidth);
+			}
 		}
 	}
 
@@ -202,7 +236,7 @@ namespace Airheads {
 		if (pixels == nullptr)
 			pixels = m_videoInput.getPixels(m_activeCamera, false, true);
 
-		m_processorPipeline.FrameDataUpdated();
+		m_processorPipeline.ProcessFrame();
 
 		int result = SDL_UpdateTexture(m_cameraRenderTex,
 			&rect, pixels, pitch);
