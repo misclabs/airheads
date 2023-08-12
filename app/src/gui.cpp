@@ -62,8 +62,11 @@ namespace Airheads {
 			ImGui::EndMainMenuBar();
 		}
 
-		ImGuiWindow("Pipeline Config", 
-			[this]() -> void { m_processorPipeline.UpdateConfigGui(); }, &m_showPipelineConfig);
+		ImGuiWindow("Pipeline Config", [this]() -> void { 
+			ImGui::Checkbox("Mirror Camera", &m_mirrorCamera);
+
+			m_processorPipeline.UpdateConfigGui(); 
+		}, &m_showPipelineConfig);
 		
 		ImGui::Begin("Actually the Real App", nullptr);
 		UpdateMainGuiContent();
@@ -221,7 +224,7 @@ namespace Airheads {
 			APP_ERROR("Error creating camera texture: {}", SDL_GetError());
 		}
 
-		auto pixels = m_videoInput.getPixels(m_activeCamera, false, true);
+		auto pixels = GetNextFramePixels();
 		m_processorPipeline.StartCapture(
 			m_videoInput.getWidth(m_activeCamera),
 			m_videoInput.getHeight(m_activeCamera),
@@ -230,11 +233,31 @@ namespace Airheads {
 		UpdateCameraTexture(pixels);
 	}
 
+	unsigned char* Gui::GetNextFramePixels() {
+		unsigned char* pixels = m_videoInput.getPixels(m_activeCamera, false, true);
+		if (m_mirrorCamera) {
+			const int frameWidth = m_videoInput.getWidth(m_activeCamera);
+			const int frameHeight = m_videoInput.getHeight(m_activeCamera);
+			for (int y = 0; y < frameHeight; ++y) {
+				for (int x = 0; x < frameWidth - x - 1; ++x) {
+					int rowIndex = y * frameWidth * 3;
+					int leftIndex = x * 3;
+					int rightIndex = (frameWidth - x - 1) * 3;
+					std::swap<unsigned char>(pixels[rowIndex + leftIndex], pixels[rowIndex + rightIndex]);
+					std::swap<unsigned char>(pixels[rowIndex + leftIndex + 1], pixels[rowIndex + rightIndex + 1]);
+					std::swap<unsigned char>(pixels[rowIndex + leftIndex + 2], pixels[rowIndex + rightIndex + 2]);
+				}
+			}
+		}
+
+		return pixels;
+	}
+
 	void Gui::UpdateCameraTexture(unsigned char* pixels) {
 		const SDL_Rect rect{ 0, 0, m_videoInput.getWidth(m_activeCamera), m_videoInput.getHeight(m_activeCamera) };
 		const int pitch = rect.w * 3;
 		if (pixels == nullptr)
-			pixels = m_videoInput.getPixels(m_activeCamera, false, true);
+			pixels = GetNextFramePixels();
 
 		m_processorPipeline.ProcessFrame();
 

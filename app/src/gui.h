@@ -21,6 +21,7 @@ namespace Airheads {
 	private:
 
 		void SetActiveCamera(int index);
+		unsigned char* GetNextFramePixels();
 		void UpdateCameraTexture(unsigned char* pixels = nullptr);
 		void UpdateStatsContent();
 		void UpdateMainGuiContent();
@@ -34,7 +35,8 @@ namespace Airheads {
 		
 		int m_selectedCamera = 0;
 		int m_activeCamera = -1;
-		
+		bool m_mirrorImage = true;
+
 		SDL_Texture* m_cameraRenderTex = nullptr;
 
 		VideoProcessorPipeline m_processorPipeline;
