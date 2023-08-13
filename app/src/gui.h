@@ -35,7 +35,7 @@ namespace Airheads {
 		
 		int m_selectedCamera = 0;
 		int m_activeCamera = -1;
-		bool m_mirrorImage = true;
+		bool m_mirrorCamera = true;
 
 		SDL_Texture* m_cameraRenderTex = nullptr;
 
