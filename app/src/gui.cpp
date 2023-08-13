@@ -5,9 +5,7 @@
 #include "log.h"
 
 #include "imgui.h"
-//#include "opencv2/core.hpp"
 
-//#include <algorithm>
 #include <cassert>
 
 namespace Airheads {
@@ -24,9 +22,9 @@ namespace Airheads {
 	}
 
 	Gui::Gui(App* app, AppWindow* appWindow) 
-		: m_saturationMapRenderer(appWindow->NativeRenderer(), &m_processingContext.saturation_map),
-		m_valueMapRenderer(appWindow->NativeRenderer(), &m_processingContext.value_map),
-		m_clusterMapRenderer(appWindow->NativeRenderer(), &m_processingContext.cluster_map)
+		: m_saturationMapRenderer(appWindow->NativeRenderer(), &m_processorPipeline.Context().saturationMap),
+		m_valueMapRenderer(appWindow->NativeRenderer(), &m_processorPipeline.Context().valueMap),
+		m_clusterMapRenderer(appWindow->NativeRenderer(), &m_processorPipeline.Context().clusterMap)
 	{
 		assert(app);
 		assert(appWindow);
@@ -64,8 +62,11 @@ namespace Airheads {
 			ImGui::EndMainMenuBar();
 		}
 
-		ImGuiWindow("Pipeline Config", 
-			[this]() -> void { UpdatePipelineConfigContent(); }, &m_showPipelineConfig);
+		ImGuiWindow("Pipeline Config", [this]() -> void { 
+			ImGui::Checkbox("Mirror Camera", &m_mirrorCamera);
+
+			m_processorPipeline.UpdateConfigGui(); 
+		}, &m_showPipelineConfig);
 		
 		ImGui::Begin("Actually the Real App", nullptr);
 		UpdateMainGuiContent();
@@ -74,50 +75,37 @@ namespace Airheads {
 		ImGuiWindow("Stats",
 			[this]() -> void { UpdateStatsContent(); }, &m_showStats);
 
-		ImGuiWindow("Saturation Map",
-			[this]() -> void { UpdateSaturationMapContent(); }, &m_showSaturationMap);
-		ImGuiWindow("Value Map",
-			[this]() -> void { UpdateValueMapContent(); }, &m_showValueMap);
-		ImGuiWindow("Cluster Map",
-			[this]() -> void { UpdateClusterMapContent(); }, &m_showClusterMap);
+		ImGuiWindow("Saturation Map", [this]() -> void { 
+			ImGui::Text("Saturation Map (threshold applied)");
+			m_saturationMapRenderer.UpdateTexture();
+			m_saturationMapRenderer.RenderImage();
+		}, &m_showSaturationMap);
+		ImGuiWindow("Value Map", [this]() -> void { 
+			ImGui::Text("Value Map (inverted, threshold applied)");
+			m_valueMapRenderer.UpdateTexture();
+			m_valueMapRenderer.RenderImage();
+		}, &m_showValueMap);
+		ImGuiWindow("Cluster Map", [this]() -> void { 
+			ImGui::Text("Cluster Map (saturation anded w/ value map)");
+			m_clusterMapRenderer.UpdateTexture();
+			m_clusterMapRenderer.RenderImage();
+		}, &m_showClusterMap);
 	}
 
 	void Gui::UpdateStatsContent() {
 		ImGui::Text("FPS: %f", ImGui::GetIO().Framerate);
-		ImGui::Separator();
 
 		if (m_activeCamera != -1) {
+			ImGui::Separator();
+			ImGui::Text("Camera Input");
 			ImVec2 cameraSize{ (float)m_videoInput.getWidth(m_activeCamera), (float)m_videoInput.getHeight(m_activeCamera) };
 			ImGui::Text("Width:%d Height:%d", (int)cameraSize.x, (int)cameraSize.y);
 			ImGui::Text("Buffer size (bytes):%d", m_videoInput.getSize(m_activeCamera));
 
-			m_processorPipeline.ForEach([](VideoProcessor& processor) {
-				ImGui::Separator();
-				ImGui::Text(processor.Name().c_str());
-				if (processor.isEnabled) {
-					processor.UpdateStatsControls();
-				}
-			});
+			m_processorPipeline.UpdateStatsGui();
 		} else {
 			ImGui::Text("No camera active");
 		}
-	}
-
-	void Gui::UpdatePipelineConfigContent() {
-		bool first = true;
-		m_processorPipeline.ForEach([&first](VideoProcessor& processor) {
-			if (!first) {
-				ImGui::Separator();
-			} else {
-				first = false;
-			}
-
-			//ImGui::Checkbox(processor.Name().c_str(), &processor.isEnabled);
-			ImGui::Text(processor.Name().c_str());
-			if (processor.isEnabled) {
-				processor.UpdateConfigControls();
-			}
-		});
 	}
 
 	void Gui::UpdateMainGuiContent() {
@@ -146,8 +134,7 @@ namespace Airheads {
 				if (ImGui::Button("Stop Video Capture")) {
 					SetActiveCamera(-1);
 				}
-			}
-			else {
+			} else {
 				if (ImGui::Button(START_VIDEO_CAPTURE_TEXT)) {
 					SetActiveCamera(m_selectedCamera);
 				}
@@ -164,37 +151,53 @@ namespace Airheads {
 
 			ImVec2 cameraSize{ (float)m_videoInput.getWidth(m_activeCamera), (float)m_videoInput.getHeight(m_activeCamera) };
 			ImVec2 availSize = ImGui::GetContentRegionAvail();
-			ImVec2 renderSize = [&] {
-				if (cameraSize.x / cameraSize.y > availSize.x / availSize.y) {
-					// fit width
-					float scale = availSize.x / cameraSize.x;
-					return ImVec2{ cameraSize.x * scale, cameraSize.y * scale };
-				}
+			float scale;
+			ImVec2 renderSize;
+			if (cameraSize.x / cameraSize.y > availSize.x / availSize.y) {
+				// fit width
+				scale = availSize.x / cameraSize.x;
+				renderSize = { cameraSize.x * scale, cameraSize.y * scale };
+			} else {
 				// fit height
-				float scale = availSize.y / cameraSize.y;
-				return ImVec2{ cameraSize.x * scale, cameraSize.y * scale };
-			}();
-			
+				scale = availSize.y / cameraSize.y;
+				renderSize = { cameraSize.x * scale, cameraSize.y * scale };
+			}
+			ImVec2 cursor = ImGui::GetCursorScreenPos();
+
 			ImGui::Image(m_cameraRenderTex, renderSize);
+
+			ImDrawList* draw = ImGui::GetWindowDrawList();
+
+			ImU32 clusterColor = IM_COL32(0, 255, 255, 255/3 * 2);
+			ImU32 dotColor = IM_COL32(0, 255, 0, 255/3 * 2);
+			float dotRadius = 6.0f;
+
+			auto& context = m_processorPipeline.Context();
+			auto topCluster = context.TopCluster();
+			if (context.IsClusterValid(topCluster)) {
+				ImVec2 center = { cursor.x + topCluster.center.x * scale, cursor.y + topCluster.center.y * scale };
+				float radius = dotRadius + dotRadius*2 * topCluster.size / context.maxClusterSizePx;
+				draw->AddCircle(center, radius, clusterColor);
+			}
+
+			auto botCluster = context.BotCluster();
+			if (context.IsClusterValid(botCluster)) {
+				ImVec2 center = { cursor.x + botCluster.center.x * scale, cursor.y + botCluster.center.y * scale };
+				float radius = dotRadius + dotRadius*2 * botCluster.size / context.maxClusterSizePx;
+				draw->AddCircle(center, radius, clusterColor);
+			}
+
+			float lineWidth = 2.0f;
+			ImVec2 topDot = { cursor.x + context.TopDotLoc().x * scale, cursor.y + context.TopDotLoc().y * scale };
+			draw->AddCircleFilled(topDot, dotRadius, dotColor);
+
+			ImVec2 botDot = { cursor.x + context.BotDotLoc().x * scale, cursor.y + context.BotDotLoc().y * scale };
+			draw->AddCircleFilled(botDot,	dotRadius, dotColor);
+
+			if (context.IsClusterValid(topCluster) && context.IsClusterValid(botCluster)) {
+				draw->AddLine(topDot, botDot, dotColor, lineWidth);
+			}
 		}
-	}
-
-	void Gui::UpdateSaturationMapContent() {
-		ImGui::Text("Saturation Map (threshold applied)");
-		m_saturationMapRenderer.UpdateTexture();
-		m_saturationMapRenderer.RenderImage();
-	}
-
-	void Gui::UpdateValueMapContent() {
-		ImGui::Text("Value Map (inverted, threshold applied)");
-		m_valueMapRenderer.UpdateTexture();
-		m_valueMapRenderer.RenderImage();
-	}
-
-	void Gui::UpdateClusterMapContent() {
-		ImGui::Text("Cluster Map (saturation anded w/ value map)");
-		m_clusterMapRenderer.UpdateTexture();
-		m_clusterMapRenderer.RenderImage();
 	}
 
 	void Gui::SetActiveCamera(int index) {
@@ -202,6 +205,7 @@ namespace Airheads {
 			return;
 
 		if (m_activeCamera >= 0) {
+			m_processorPipeline.StopCapture();
 			m_videoInput.stopDevice(m_activeCamera);
 			SDL_DestroyTexture(m_cameraRenderTex);
 			m_cameraRenderTex = nullptr;
@@ -220,20 +224,42 @@ namespace Airheads {
 			APP_ERROR("Error creating camera texture: {}", SDL_GetError());
 		}
 
+		auto pixels = GetNextFramePixels();
 		m_processorPipeline.StartCapture(
 			m_videoInput.getWidth(m_activeCamera),
-			m_videoInput.getHeight(m_activeCamera));
+			m_videoInput.getHeight(m_activeCamera),
+			pixels);
 
-		UpdateCameraTexture();
+		UpdateCameraTexture(pixels);
 	}
 
-	void Gui::UpdateCameraTexture() {
+	unsigned char* Gui::GetNextFramePixels() {
+		unsigned char* pixels = m_videoInput.getPixels(m_activeCamera, false, true);
+		if (m_mirrorCamera) {
+			const int frameWidth = m_videoInput.getWidth(m_activeCamera);
+			const int frameHeight = m_videoInput.getHeight(m_activeCamera);
+			for (int y = 0; y < frameHeight; ++y) {
+				for (int x = 0; x < frameWidth - x - 1; ++x) {
+					int rowIndex = y * frameWidth * 3;
+					int leftIndex = x * 3;
+					int rightIndex = (frameWidth - x - 1) * 3;
+					std::swap<unsigned char>(pixels[rowIndex + leftIndex], pixels[rowIndex + rightIndex]);
+					std::swap<unsigned char>(pixels[rowIndex + leftIndex + 1], pixels[rowIndex + rightIndex + 1]);
+					std::swap<unsigned char>(pixels[rowIndex + leftIndex + 2], pixels[rowIndex + rightIndex + 2]);
+				}
+			}
+		}
+
+		return pixels;
+	}
+
+	void Gui::UpdateCameraTexture(unsigned char* pixels) {
 		const SDL_Rect rect{ 0, 0, m_videoInput.getWidth(m_activeCamera), m_videoInput.getHeight(m_activeCamera) };
 		const int pitch = rect.w * 3;
-		unsigned char* const pixels = m_videoInput.getPixels(m_activeCamera, false, true);
+		if (pixels == nullptr)
+			pixels = GetNextFramePixels();
 
-		m_processingContext.SetFrameBGR(rect.w, rect.h, pixels);
-		m_processorPipeline.ProcessFrame(m_processingContext);
+		m_processorPipeline.ProcessFrame();
 
 		int result = SDL_UpdateTexture(m_cameraRenderTex,
 			&rect, pixels, pitch);

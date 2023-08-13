@@ -21,13 +21,10 @@ namespace Airheads {
 	private:
 
 		void SetActiveCamera(int index);
-		void UpdateCameraTexture();
+		unsigned char* GetNextFramePixels();
+		void UpdateCameraTexture(unsigned char* pixels = nullptr);
 		void UpdateStatsContent();
-		void UpdatePipelineConfigContent();
 		void UpdateMainGuiContent();
-		void UpdateSaturationMapContent();
-		void UpdateValueMapContent();
-		void UpdateClusterMapContent();
 
 		App* m_app;
 		AppWindow* m_appWindow;
@@ -38,16 +35,16 @@ namespace Airheads {
 		
 		int m_selectedCamera = 0;
 		int m_activeCamera = -1;
-		
+		bool m_mirrorImage = true;
+
 		SDL_Texture* m_cameraRenderTex = nullptr;
 
 		VideoProcessorPipeline m_processorPipeline;
-		ProcessingContext m_processingContext;
 
 		bool m_showStats = true;
 		bool m_showPipelineConfig = true;
-		bool m_showSaturationMap = false;
-		bool m_showValueMap = false;
+		bool m_showSaturationMap = true;
+		bool m_showValueMap = true;
 		bool m_showClusterMap = true;
 
 		GuiMatRenderer m_saturationMapRenderer;
