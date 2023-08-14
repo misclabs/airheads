@@ -37,11 +37,14 @@ namespace Airheads {
 
 	void VideoProcessorPipeline::UpdateConfigGui(){
 		ImGui::SliderInt("Saturation Threshold", &m_context.saturationThreshold, 0, 255);
+
 		ImGui::SliderInt("Value Threshold", &m_context.valueThreshold, 0, 255);
 
 		if (ImGui::Button("Reset Cluster Guess")) {
 			m_context.ResetOutput();
 		}
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
+			ImGui::SetTooltip("Reset the cluster centers to default locations.");
 
 		ForEach([](VideoProcessor& processor) {
 			ImGui::Separator();
