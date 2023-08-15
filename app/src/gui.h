@@ -5,51 +5,54 @@
 
 #include "videoInput.h"
 #include "SDL.h"
+#include "imgui.h"
 
 namespace Airheads {
 
-	class App;
-	class AppWindow;
+class App;
+class AppWindow;
 
-	class Gui {
-	public:
+class Gui {
+ public:
 
-		Gui(App* app, AppWindow* appWindow);
+  Gui(App *app, AppWindow *app_window);
 
-		void Update();
+  void Update();
 
-	private:
+ private:
 
-		void SetActiveCamera(int index);
-		unsigned char* GetNextFramePixels();
-		void UpdateCameraTexture(unsigned char* pixels = nullptr);
-		void UpdateStatsContent();
-		void UpdateMainGuiContent();
+  void SetActiveCamera(int index);
+  unsigned char *GetNextFramePixels();
+  void UpdateCameraTexture(unsigned char *pixels = nullptr);
+  void UpdateStatsContent();
+  void UpdateMainGuiContent();
 
-		App* m_app;
-		AppWindow* m_appWindow;
-		videoInput m_videoInput;
+  App *app_;
+  AppWindow *app_window_;
+  videoInput video_input_;
 
-		bool m_shouldUpdateAvailableCameras = true;
-		std::vector<std::string> m_cameraNames;
-		
-		int m_selectedCamera = 0;
-		int m_activeCamera = -1;
-		bool m_mirrorCamera = true;
+  bool should_update_available_cameras_ = true;
+  std::vector<std::string> camera_names_;
 
-		SDL_Texture* m_cameraRenderTex = nullptr;
+  int selected_camera_ = 0;
+  int active_camera_ = -1;
+  bool is_camera_mirrored_ = true;
 
-		VideoProcessorPipeline m_processorPipeline;
+  SDL_Texture *camera_render_tex_ = nullptr;
 
-		bool m_showStats = true;
-		bool m_showPipelineConfig = true;
-		bool m_showSaturationMap = true;
-		bool m_showValueMap = true;
-		bool m_showClusterMap = true;
+  VideoProcessorPipeline processor_pipeline_;
 
-		GuiMatRenderer m_saturationMapRenderer;
-		GuiMatRenderer m_valueMapRenderer;
-		GuiMatRenderer m_clusterMapRenderer;
-	};
+  bool is_stats_visible_ = true;
+  bool is_pipeline_config_visible_ = true;
+  bool is_saturation_map_visible_ = true;
+  bool is_value_map_visible_ = true;
+  bool is_cluster_map_visible_ = true;
+  bool is_ruler_visible_ = false;
+
+  GuiMatRenderer saturation_map_renderer_;
+  GuiMatRenderer value_map_renderer_;
+  GuiMatRenderer cluster_map_renderer_;
+  void UpdateConfigContent();
+};
 
 }

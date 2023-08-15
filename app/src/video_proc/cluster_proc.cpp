@@ -1,78 +1,72 @@
 #include "cluster_proc.h"
 #include "cluster.h"
-
 #include "opencv2/core.hpp"
-#include "opencv2/imgproc.hpp"
 #include "imgui.h"
-
-#include <vector>
-#include <queue>
-#include <limits>
 #include <cmath>
 
 namespace Airheads {
 
-	static const std::string g_dotDiffName {"Cluster Processor"};
+static const std::string kDotDiffName{"Cluster Processor"};
 
-	ClusterProcUniquePtr ClusterProc::Create() {
-		return std::make_unique<ClusterProc>();
-	}
+ClusterProcUniquePtr ClusterProc::Create() {
+  return std::make_unique<ClusterProc>();
+}
 
-	const std::string& ClusterProc::Name() const {
-		return g_dotDiffName;
-	}
+const std::string &ClusterProc::Name() const {
+  return kDotDiffName;
+}
 
-	void ClusterProc::ProcessFrame(ProcessingContext& context) {
-		if (context.clusterMap.empty())
-			return;
+void ClusterProc::ProcessFrame(ProcessingContext &context) {
+  if (context.cluster_map_.empty())
+    return;
 
-		int maxSeekRadius = (int)std::max(100.0, 0.65 * context.DotsDistPx());
+  int max_seek_radius = (int) std::max(100.0, 0.65 * context.DotsDistPx());
 
-		auto getCluster = [&](cv::Point seedGuess) {
-			auto seed = Cluster::FindSeed(context.clusterMap,
-				seedGuess,
-				context.InvertedValueThreshold(), 
-				maxSeekRadius);
-			if (seed) {
-				m_pixels.clear();
-				Cluster::ClusterFill(context.clusterMap, *seed, (uchar)context.InvertedValueThreshold(), 
-					m_clusterColor, context.maxClusterSizePx, m_pixels);
+  auto get_cluster = [&](cv::Point seed_guess) {
+    auto seed = Cluster::FindSeed(context.cluster_map_,
+                                  seed_guess,
+                                  context.InvertedValueThreshold(),
+                                  max_seek_radius);
+    if (seed) {
+      pixels_.clear();
+      Cluster::ClusterFill(context.cluster_map_, *seed, (uchar) context.InvertedValueThreshold(),
+                           cluster_color_, context.max_cluster_size_px_, pixels_);
 
-				Cluster::ClusterMetrics metrics;
-				if (m_centerStrat == CenterStrategy::WeightedAverage)
-					metrics = Cluster::ClusterMetrics::FromWeightedPixels(m_pixels);
-				else
-					metrics = Cluster::ClusterMetrics::FromPixels(m_pixels);
+      Cluster::ClusterMetrics metrics;
+      if (center_strat_ == CenterStrategy::kWeightedAverage)
+        metrics = Cluster::ClusterMetrics::FromWeightedPixels(pixels_);
+      else
+        metrics = Cluster::ClusterMetrics::FromPixels(pixels_);
 
-				return ClusterResult{ metrics.center, metrics.sizePx };
-			} 
+      return ClusterResult{metrics.center, metrics.sizePx};
+    }
 
-			return ClusterResult{ seedGuess };
-		};
+    return ClusterResult{seed_guess};
+  };
 
-		ClusterResult upperClusterResult = getCluster(context.TopDotLoc());
-		ClusterResult lowerClusterResult = getCluster(context.BotDotLoc());
+  ClusterResult upper_cluster_result = get_cluster(context.TopDotLoc());
+  ClusterResult lower_cluster_result = get_cluster(context.BotDotLoc());
 
-		context.UpdateClusterResults(upperClusterResult, lowerClusterResult);
-	}
+  context.UpdateClusterResults(upper_cluster_result, lower_cluster_result);
+}
 
-	void ClusterProc::UpdateConfigControls() {
-		const char* stratNames[(int)CenterStrategy::StrategyCount] = {"Average", "Weighted Average"};
-		const char* previewName = stratNames[(int)m_centerStrat];
+void ClusterProc::UpdateConfigControls() {
+  const char *strat_names[(int) CenterStrategy::kStrategyCount] = {"Average", "Weighted Average"};
+  const char *preview_name = strat_names[(int) center_strat_];
 
-		if (ImGui::BeginCombo("Find Center Strategy", previewName, 0)) {
-			for (int i = 0; i < (int)CenterStrategy::StrategyCount; ++i) {
-				const bool is_selected = ((int)m_centerStrat == i);
-				if (ImGui::Selectable(stratNames[i], is_selected))
-					m_centerStrat = (CenterStrategy)i;
+  if (ImGui::BeginCombo("Find Center Strategy", preview_name, 0)) {
+    for (int i = 0; i < (int) CenterStrategy::kStrategyCount; ++i) {
+      const bool is_selected = ((int) center_strat_ == i);
+      if (ImGui::Selectable(strat_names[i], is_selected))
+        center_strat_ = (CenterStrategy) i;
 
-				// Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
-				if (is_selected)
-					ImGui::SetItemDefaultFocus();
-			}
-			ImGui::EndCombo();
-		}
+      // Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
+      if (is_selected)
+        ImGui::SetItemDefaultFocus();
+    }
+    ImGui::EndCombo();
+  }
 
-	}
+}
 
 }

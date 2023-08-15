@@ -5,32 +5,32 @@
 
 namespace Airheads {
 
-	enum class CenterStrategy {
-		Average,
-		WeightedAverage,
-		StrategyCount
-	};
+enum class CenterStrategy {
+  kAverage,
+  kWeightedAverage,
+  kStrategyCount
+};
 
-	class ClusterProc;
-	using ClusterProcUniquePtr = std::unique_ptr<ClusterProc>;
+class ClusterProc;
+using ClusterProcUniquePtr = std::unique_ptr<ClusterProc>;
 
-	class ClusterProc : public VideoProcessor {
-	public:
+class ClusterProc : public VideoProcessor {
+ public:
 
-		static ClusterProcUniquePtr Create();
+  [[nodiscard]] static ClusterProcUniquePtr Create();
 
-		const std::string& Name() const override;
-		
-		void ProcessFrame(ProcessingContext& context) override;
-	
-		void UpdateConfigControls() override;
+  [[nodiscard]] const std::string &Name() const override;
 
-	private:
-		
-		CenterStrategy m_centerStrat = CenterStrategy::WeightedAverage;
+  void ProcessFrame(ProcessingContext &seed_guess) override;
 
-		int m_clusterColor = 50; // #ought to be significantly less than value_threshold
-		std::vector<Cluster::ClusterPixel> m_pixels;
-	};
+  void UpdateConfigControls() override;
+
+ private:
+
+  CenterStrategy center_strat_ = CenterStrategy::kWeightedAverage;
+
+  int cluster_color_ = 50; // #ought to be significantly less than value_threshold
+  std::vector<Cluster::ClusterPixel> pixels_;
+};
 
 }
