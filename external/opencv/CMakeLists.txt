@@ -3,6 +3,9 @@
 # via the command line or GUI
 find_package(OpenCV REQUIRED)
 
+# Export version variable
+set(OpenCV_VERSION ${OpenCV_VERSION} CACHE INTERNAL "")
+
 # If the package has been found, several variables will
 # be set, you can find the full list with descriptions
 # in the OpenCVConfig.cmake file.
@@ -12,6 +15,7 @@ message(STATUS "    config: ${OpenCV_DIR}")
 message(STATUS "    version: ${OpenCV_VERSION}")
 message(STATUS "    libraries: ${OpenCV_LIBS}")
 message(STATUS "    include path: ${OpenCV_INCLUDE_DIRS}")
+
 
 add_library(OpenCV INTERFACE)
 target_include_directories(OpenCV INTERFACE ${OpenCV_INCLUDE_DIRS})

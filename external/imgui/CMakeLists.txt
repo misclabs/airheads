@@ -20,7 +20,7 @@ add_library(imgui
 	${imgui_SOURCE_DIR}/imstb_truetype.h
 	
 	${imgui_SOURCE_DIR}/backends/imgui_impl_sdl2.cpp ${imgui_SOURCE_DIR}/backends/imgui_impl_sdl2.h
-	${imgui_SOURCE_DIR}/backends/imgui_impl_sdlrenderer.cpp ${imgui_SOURCE_DIR}/backends/imgui_impl_sdlrenderer.h
+	${imgui_SOURCE_DIR}/backends/imgui_impl_sdlrenderer2.cpp ${imgui_SOURCE_DIR}/backends/imgui_impl_sdlrenderer2.h
 )
 
 target_include_directories(imgui PUBLIC ${imgui_SOURCE_DIR})

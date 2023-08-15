@@ -24,7 +24,7 @@ static void DrawRuler(ImDrawList *draw, ImVec2 left_side, float window_pixels_pe
   draw->AddText({right_side.x + 3, right_side.y}, color, "1cm");
 }
 
-void AppraiserWindow::Update(VideoProcessorPipeline& pipeline) {
+void AppraiserWindow::Update(VideoProcessorPipeline &pipeline) {
   if (should_update_available_cameras_) {
     should_update_available_cameras_ = false;
     camera_names_ = videoInput::getDeviceList();
@@ -50,7 +50,7 @@ void AppraiserWindow::Update(VideoProcessorPipeline& pipeline) {
 
 }
 
-void AppraiserWindow::UpdateToolbar(VideoProcessorPipeline& pipeline) {
+void AppraiserWindow::UpdateToolbar(VideoProcessorPipeline &pipeline) {
   // Camera Selection Combobox
   {
     const char *combo_preview = selected_camera_ >= 0 && selected_camera_ < camera_names_.size() ?
@@ -88,7 +88,7 @@ void AppraiserWindow::UpdateToolbar(VideoProcessorPipeline& pipeline) {
   }
 }
 
-void AppraiserWindow::UpdateCalibrationView(VideoProcessorPipeline& pipeline) {
+void AppraiserWindow::UpdateCalibrationView(VideoProcessorPipeline &pipeline) {
   pipeline.Context().SetMode(ProcessingMode::kCalibration);
   pipeline.Context().ResetOutput();
   CaptureAndProcessCameraFrame(pipeline);
@@ -112,7 +112,7 @@ void AppraiserWindow::UpdateCalibrationView(VideoProcessorPipeline& pipeline) {
   }
 }
 
-void AppraiserWindow::UpdateTestingView(VideoProcessorPipeline& pipeline) {
+void AppraiserWindow::UpdateTestingView(VideoProcessorPipeline &pipeline) {
   pipeline.Context().SetMode(ProcessingMode::kTesting);
   CaptureAndProcessCameraFrame(pipeline);
 
@@ -127,7 +127,8 @@ void AppraiserWindow::UpdateTestingView(VideoProcessorPipeline& pipeline) {
     ImVec2 center = {
         view_metrics.window_pos.x + (float) cluster.center.x * view_metrics.frame_to_window_scale,
         view_metrics.window_pos.y + (float) cluster.center.y * view_metrics.frame_to_window_scale};
-    float radius = target_radius_px + target_radius_px * 2 * (float) cluster.size / (float) context.max_cluster_size_px_;
+    float
+        radius = target_radius_px + target_radius_px * 2 * (float) cluster.size / (float) context.max_cluster_size_px_;
     draw->AddCircle(center, radius, kClusterColor);
   };
   if (context.IsClusterValid(context.TopCluster())) {
@@ -148,7 +149,9 @@ void AppraiserWindow::UpdateTestingView(VideoProcessorPipeline& pipeline) {
   }
 }
 
-void AppraiserWindow::DrawOverlayTargets(ImDrawList *draw, const ProcessingContext& context, CameraViewMetrics view_metrics) {
+void AppraiserWindow::DrawOverlayTargets(ImDrawList *draw,
+                                         const ProcessingContext &context,
+                                         CameraViewMetrics view_metrics) {
   const auto is_top_cluster_valid = context.IsClusterValid(context.TopCluster());
   const auto is_bot_cluster_valid = context.IsClusterValid(context.BotCluster());
   const float target_radius_px = context.CmToPx(context.target_diameter_cm_ / 2.0f);
@@ -161,7 +164,8 @@ void AppraiserWindow::DrawOverlayTargets(ImDrawList *draw, const ProcessingConte
 
 CameraViewMetrics AppraiserWindow::UpdateCameraView() {
   const ImVec2 cursor = ImGui::GetCursorScreenPos();
-  const ImVec2 camera_size{(float) video_input_.getWidth(active_camera_), (float) video_input_.getHeight(active_camera_)};
+  const ImVec2
+      camera_size{(float) video_input_.getWidth(active_camera_), (float) video_input_.getHeight(active_camera_)};
   const ImVec2 avail_size = ImGui::GetContentRegionAvail();
 
   float scale;
@@ -178,14 +182,15 @@ CameraViewMetrics AppraiserWindow::UpdateCameraView() {
 
   ImGui::Image(camera_render_tex_, render_size);
 
-  return CameraViewMetrics { cursor, render_size, scale };
+  return CameraViewMetrics{cursor, render_size, scale};
 }
 
-void AppraiserWindow::SetActiveCamera(int index, VideoProcessorPipeline& pipeline) {
+void AppraiserWindow::SetActiveCamera(int index, VideoProcessorPipeline &pipeline) {
   if (index == active_camera_)
     return;
 
   if (active_camera_ >= 0) {
+    APP_INFO("Stopping capture on device {}", video_input_.getDeviceName(active_camera_));
     pipeline.StopCapture();
     video_input_.stopDevice(active_camera_);
     SDL_DestroyTexture(camera_render_tex_);
@@ -196,7 +201,14 @@ void AppraiserWindow::SetActiveCamera(int index, VideoProcessorPipeline& pipelin
   if (active_camera_ == -1)
     return;
 
-  video_input_.setupDevice(active_camera_);
+  APP_INFO("Starting capture on device {}", video_input_.getDeviceName(active_camera_));
+  if (!video_input_.setupDevice(active_camera_)) {
+    APP_ERROR("Failed to setup device {}", video_input_.getDeviceName(active_camera_));
+    active_camera_ = -1;
+    return;
+  }
+  video_input_.setAutoReconnectOnFreeze(active_camera_, true, 60);
+
   camera_render_tex_ = SDL_CreateTexture(app_window_->NativeRenderer(),
                                          SDL_PIXELFORMAT_BGR24, SDL_TEXTUREACCESS_STREAMING,
                                          video_input_.getWidth(active_camera_), video_input_.getHeight(active_camera_)
@@ -214,18 +226,31 @@ void AppraiserWindow::SetActiveCamera(int index, VideoProcessorPipeline& pipelin
   CaptureAndProcessCameraFrame(pipeline, pixels);
 }
 
-void AppraiserWindow::CaptureAndProcessCameraFrame(VideoProcessorPipeline& pipeline, unsigned char *pixels) {
+void AppraiserWindow::CaptureAndProcessCameraFrame(VideoProcessorPipeline &pipeline, unsigned char *pixels) {
   const SDL_Rect rect{0, 0, video_input_.getWidth(active_camera_), video_input_.getHeight(active_camera_)};
   const int pitch = rect.w * 3;
-  if (pixels == nullptr)
+  if (pixels == nullptr) {
+    if (!video_input_.isDeviceSetup(active_camera_)) {
+      APP_ERROR("CaptureAndProcessCameraFrame device {}({}) is not setup!",
+                video_input_.getDeviceName(active_camera_), active_camera_);
+      return;
+    }
+
+    if (!video_input_.isFrameNew(active_camera_))
+      return;
+
     pixels = GetNextFramePixels();
+  }
 
   pipeline.ProcessFrame();
 
   int result = SDL_UpdateTexture(camera_render_tex_,
                                  &rect, pixels, pitch);
   if (result) {
-    APP_ERROR("Error updating camera texture: {}", SDL_GetError());
+    APP_ERROR("Error updating camera {}({}) {}x{} texture: {}",
+              video_input_.getDeviceName(active_camera_), active_camera_,
+              rect.w, rect.h,
+              SDL_GetError());
   }
 }
 

@@ -1,0 +1,11 @@
+#include "project_version.h"
+
+namespace Airheads {
+
+const std::string kFmtVersion{"@fmt_VERSION@"};
+const std::string kSpdlogVersion{"@spdlog_VERSION@"};
+const std::string kSdl2Version{"@SDL2_VERSION@"};
+const std::string kImguiVersion{"@imgui_VERSION@"};
+const std::string kOpenCVVersion{"@OpenCV_VERSION@"};
+
+}

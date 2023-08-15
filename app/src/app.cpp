@@ -4,134 +4,139 @@
 #include "developer_gui.h"
 #include "log.h"
 #include "project_conf.h"
+#include "project_version.h"
+#include "git_version.h"
 #include "resources.h"
 
 #include "backends/imgui_impl_sdl2.h"
-#include "backends/imgui_impl_sdlrenderer.h"
+#include "backends/imgui_impl_sdlrenderer2.h"
 #include "imgui.h"
 
 namespace Airheads {
-	AppUniquePtr App::CreateApplication() {
-		const std::string appTitle{"Airheads"};
 
-		if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_GAMECONTROLLER) != 0) {
-			APP_ERROR("Error: {}", SDL_GetError());
-			return nullptr;
-		}
-		AppWindowUniquePtr windowPtr = std::make_unique<Airheads::AppWindow>(Airheads::AppWindow::Settings{appTitle});
+AppUniquePtr App::CreateApplication() {
+  const std::string app_title{"Airheads"};
 
-		const char* userConfigPath = SDL_GetPrefPath(Conf::COMPANY_NAMESPACE.c_str(), Conf::APP_NAME.c_str());
-		APP_INFO("User config path: {}", userConfigPath);
+  APP_INFO("Airheads: {}", kGitHash);
+  APP_INFO("Libraries:");
+  APP_INFO("  OpenCV {}", kOpenCVVersion);
+  APP_INFO("  SDL {}", kSdl2Version);
+  APP_INFO("  Dear ImGui {}", kImguiVersion);
+  APP_INFO("  spdlog {}", kSpdlogVersion);
+  APP_INFO("  fmt {}", kFmtVersion);
 
-		return std::make_unique<App>(std::move(windowPtr), userConfigPath);
-	}
+  if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_GAMECONTROLLER) != 0) {
+    APP_ERROR("Error: {}", SDL_GetError());
+    return nullptr;
+  }
+  AppWindowUniquePtr window_ptr = std::make_unique<Airheads::AppWindow>(Airheads::AppWindow::Settings{app_title});
 
-	App::~App() {
-		ImGui_ImplSDLRenderer_Shutdown();
-		ImGui_ImplSDL2_Shutdown();
-		ImGui::DestroyContext();
+  const char *user_config_path = SDL_GetPrefPath(Conf::COMPANY_NAMESPACE.c_str(), Conf::APP_NAME.c_str());
+  APP_INFO("User config path: {}", user_config_path);
 
-		SDL_Quit();
-	}
+  return std::make_unique<App>(std::move(window_ptr), user_config_path);
+}
 
-	void App::StopMainLoop() {
-		m_shouldKeepLooping = false;
-	}
+App::~App() {
+  ImGui_ImplSDLRenderer2_Shutdown();
+  ImGui_ImplSDL2_Shutdown();
+  ImGui::DestroyContext();
 
-	ExitStatus App::RunMainLoop() {
-		if (m_exitStatus == ExitStatus::FAILURE) {
-			return m_exitStatus;
-		}
+  SDL_Quit();
+}
 
-		// Setup Dear ImGui context
-		IMGUI_CHECKVERSION();
-		ImGui::CreateContext();
-		ImGuiIO& io{ ImGui::GetIO() };
+void App::StopMainLoop() {
+  should_keep_looping_ = false;
+}
 
-		io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_DockingEnable |
-			ImGuiConfigFlags_ViewportsEnable;
+void App::RunMainLoop() {
+  // Setup Dear ImGui context
+  IMGUI_CHECKVERSION();
+  ImGui::CreateContext();
+  ImGuiIO &io{ImGui::GetIO()};
 
-		const std::string user_config_path{
-			SDL_GetPrefPath(Conf::COMPANY_NAMESPACE.c_str(), Conf::APP_NAME.c_str())};
-		APP_DEBUG("User config path: {}", user_config_path);
+  io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_DockingEnable |
+      ImGuiConfigFlags_ViewportsEnable;
 
-		// Absolute imgui.ini path to preserve settings independent of app location.
-		static const std::string imgui_ini_filename{m_userConfigPath + "imgui.ini"};
-		io.IniFilename = imgui_ini_filename.c_str();
+  // Absolute imgui.ini path to preserve settings independent of app location.
+  static const std::string imgui_ini_filename{user_config_path_ + "imgui.ini"};
+  io.IniFilename = imgui_ini_filename.c_str();
 
-		// ImGUI font
-		const float font_scaling_factor{ DPIHandler::GetScale() };
-		const float font_size{ 18.0F * font_scaling_factor };
-		const std::string fontPath{Resources::GetFontPath("Manrope.ttf").generic_string()};
+  // ImGUI font
+  const float font_scaling_factor{DPIHandler::GetScale()};
+  const float font_size{18.0F * font_scaling_factor};
+  const std::string fontPath{Resources::GetFontPath("Manrope.ttf").generic_string()};
 
-		io.Fonts->AddFontFromFileTTF(fontPath.c_str(), font_size);
-		io.FontDefault = io.Fonts->AddFontFromFileTTF(fontPath.c_str(), font_size);
-		DPIHandler::SetGlobalFontScaling(&io);
+  io.Fonts->AddFontFromFileTTF(fontPath.c_str(), font_size);
+  io.FontDefault = io.Fonts->AddFontFromFileTTF(fontPath.c_str(), font_size);
+  DPIHandler::SetGlobalFontScaling(&io);
 
-		// Setup Platform/Renderer backends
-		ImGui_ImplSDL2_InitForSDLRenderer(
-			m_windowPtr->NativeWindow(), m_windowPtr->NativeRenderer());
-		ImGui_ImplSDLRenderer_Init(m_windowPtr->NativeRenderer());
-		DeveloperGui gui(this, m_windowPtr.get());
+  // Setup Platform/Renderer backends
+  ImGui_ImplSDL2_InitForSDLRenderer(
+      window_ptr_->NativeWindow(), window_ptr_->NativeRenderer());
+  ImGui_ImplSDLRenderer2_Init(window_ptr_->NativeRenderer());
+  DeveloperGui developer_gui(this, window_ptr_.get());
 
-		m_shouldKeepLooping = true;
-		while (m_shouldKeepLooping) {
-			SDL_Event event{};
-			while (SDL_PollEvent(&event) == 1) {
-				ImGui_ImplSDL2_ProcessEvent(&event);
+  should_keep_looping_ = true;
+  while (should_keep_looping_) {
 
-				if (event.type == SDL_QUIT) {
-					StopMainLoop();
-				}
+    const auto kProcessEvent = [this](SDL_Event &event) {
+      ImGui_ImplSDL2_ProcessEvent(&event);
 
-				if (event.type == SDL_WINDOWEVENT &&
-					event.window.windowID == SDL_GetWindowID(m_windowPtr->NativeWindow())) {
-					on_event(event.window);
-				}
-			}
+      if (event.type == SDL_QUIT) {
+        StopMainLoop();
+      }
 
-			// Start the Dear ImGui frame
-			ImGui_ImplSDLRenderer_NewFrame();
-			ImGui_ImplSDL2_NewFrame();
-			ImGui::NewFrame();
+      if (event.type == SDL_WINDOWEVENT &&
+          event.window.windowID == SDL_GetWindowID(window_ptr_->NativeWindow())) {
+        OnEvent(event.window);
+      }
+    };
 
-			if (!m_minimized) {
-				gui.Update();
-			}
+    // Process all queued events
+    {
+      SDL_Event event{};
+      while (SDL_PollEvent(&event) == 1) {
+        kProcessEvent(event);
+      }
+    }
 
-			// Rendering
-			ImGui::Render();
+    // Start the Dear ImGui frame
+    ImGui_ImplSDLRenderer2_NewFrame();
+    ImGui_ImplSDL2_NewFrame();
+    ImGui::NewFrame();
 
-			SDL_SetRenderDrawColor(m_windowPtr->NativeRenderer(), 100, 100, 100, 255);
-			SDL_RenderClear(m_windowPtr->NativeRenderer());
-			ImGui_ImplSDLRenderer_RenderDrawData(ImGui::GetDrawData());
-			SDL_RenderPresent(m_windowPtr->NativeRenderer());
-		}
+    if (!minimized_) {
+      developer_gui.Update();
+    }
 
-		return m_exitStatus;
-	}
+    // Rendering
+    ImGui::Render();
 
-	App::App(AppWindowUniquePtr platformWindowPtr, const char* userConfigPath) :
-		m_windowPtr{ std::move(platformWindowPtr) },
-		m_userConfigPath{ userConfigPath }
-	{
-		assert(m_windowPtr);
-	}
+    SDL_SetRenderDrawColor(window_ptr_->NativeRenderer(), 100, 100, 100, 255);
+    SDL_RenderClear(window_ptr_->NativeRenderer());
+    ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData());
+    SDL_RenderPresent(window_ptr_->NativeRenderer());
+  }
+}
 
-	void App::on_event(const SDL_WindowEvent& event) {
-		switch (event.event) {
-		case SDL_WINDOWEVENT_CLOSE:
-			StopMainLoop();
-			return;
+App::App(AppWindowUniquePtr window_ptr, const char *user_config_path) :
+    window_ptr_{std::move(window_ptr)},
+    user_config_path_{user_config_path} {
+  assert(window_ptr_);
+}
 
-		case SDL_WINDOWEVENT_MINIMIZED:
-			m_minimized = true;
-			return;
+void App::OnEvent(const SDL_WindowEvent &event) {
+  switch (event.event) {
+    case SDL_WINDOWEVENT_CLOSE: StopMainLoop();
+      return;
 
-		case SDL_WINDOWEVENT_SHOWN:
-			m_minimized = false;
-			return;
-		}
-	}
+    case SDL_WINDOWEVENT_MINIMIZED: minimized_ = true;
+      return;
+
+    case SDL_WINDOWEVENT_SHOWN: minimized_ = false;
+      return;
+  }
+}
 
 }

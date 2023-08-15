@@ -1,6 +1,13 @@
 set(NAME "airheads")
 
+message(STATUS "fmt version: ${fmt_VERSION}")
+message(STATUS "spdlog version: ${spdlog_VERSION}")
+message(STATUS "SDL2 version: ${SDL2_VERSION}")
+message(STATUS "imgui version: ${imgui_VERSION}")
+message(STATUS "OpenVC version: ${OpenCV_VERSION}")
+
 configure_file(src/project_conf.cpp.in src/project_conf.cpp @ONLY)
+configure_file(src/project_version.cpp.in src/project_version.cpp @ONLY)
 
 add_executable(${NAME} WIN32 MACOSX_BUNDLE src/main.cpp)
 
@@ -11,6 +18,7 @@ target_include_directories(${NAME}
 
 target_sources(${NAME} PRIVATE
         src/project_conf.cpp src/project_conf.h
+        src/project_version.cpp src/project_version.h
         src/log.cpp src/log.h
         src/app.cpp src/app.h
         src/app_window.cpp src/app_window.h
@@ -48,6 +56,7 @@ target_include_directories(${NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_features(${NAME} PRIVATE cxx_std_20)
 target_link_libraries(${NAME} PRIVATE
         project_warnings
+        git_version
         video_input_lib
         fmt
         spdlog
