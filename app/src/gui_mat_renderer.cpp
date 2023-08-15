@@ -1,6 +1,7 @@
 #include "gui_mat_renderer.h"
 
 #include "imgui.h"
+#include "log.h"
 
 #include <cassert>
 
@@ -16,7 +17,7 @@ namespace Airheads {
 		Clear();
 	}
 
-	bool GuiMatRenderer::IsMatRenderable() {
+	bool GuiMatRenderer::IsMatRenderable() noexcept {
 		return !m_mat->empty()
 			&& m_mat->dims == 2
 			&& m_mat->depth() == CV_8U
@@ -47,11 +48,14 @@ namespace Airheads {
 		}
 
 		if (!m_sdlTexture) {
-			CreateTexture();
-		}
-		else if (!DoesTextureMatchMat()) {
+			if (!CreateTexture()) {
+                APP_ERROR("Could not create texture.");
+            }
+		} else if (!DoesTextureMatchMat()) {
 			Clear();
-			CreateTexture();
+			if (!CreateTexture()) {
+                APP_ERROR("Could not create texture.");
+            }
 		}
 
 		if (m_sdlTexture) {

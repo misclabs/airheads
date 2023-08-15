@@ -16,7 +16,7 @@ namespace Airheads {
 		GuiMatRenderer(GuiMatRenderer&&) = delete;
 		GuiMatRenderer& operator=(GuiMatRenderer&&) = delete;
 
-		bool IsMatRenderable();
+		[[nodiscard]] bool IsMatRenderable() noexcept;
 		void Clear();
 		void UpdateTexture();
 		void RenderImage();
@@ -29,7 +29,7 @@ namespace Airheads {
 		int m_texChannels = 0;
 		std::unique_ptr<unsigned char[]> m_displayBuffer;
 
-		bool DoesTextureMatchMat();
-		bool CreateTexture();
+		[[nodiscard]] bool DoesTextureMatchMat();
+		[[nodiscard]] bool CreateTexture();
 	};
 }
