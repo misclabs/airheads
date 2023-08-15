@@ -10,7 +10,6 @@ target_include_directories(${NAME}
 )
 
 target_sources(${NAME} PRIVATE
-	src/airheads.h
 	src/project_conf.cpp src/project_conf.h
 	src/log.cpp src/log.h
 	src/app.cpp src/app.h
