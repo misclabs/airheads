@@ -31,3 +31,6 @@ Note that the build does not automaticly include the required OpenCV DLLs in a d
 
 ## Building and Debugging w/ Visual Studio
 The is a cmake project. Make sure you have [C++ CMake tools for Windows](https://learn.microsoft.com/en-us/cpp/build/cmake-projects-in-visual-studio?view=msvc-170) installed and then open this folder using "Open a local folder". The first time you open the project it might take a bit for the dependencies to download (check the output panel for message like "Fetching fmt ..."). Once that's done select `airheads.exe (app\aiheads.exe)` as the target and run.
+
+## Planning/Development
+Some rough plans are documented in Trello here: https://trello.com/b/mAXCaU50/airheads
