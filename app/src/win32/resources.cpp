@@ -1,7 +1,6 @@
 #include "resources.h"
 
 #include <SDL.h>
-#include <fmt/format.h>
 
 namespace Airheads {
 
