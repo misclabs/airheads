@@ -1,38 +1,58 @@
 #pragma once
 
-#include "videoInput.h"
+#include "video_proc/video_proc.h"
+#include "gui_mat_renderer.h"
 
+#include "videoInput.h"
 #include "SDL.h"
+#include "imgui.h"
 
 namespace Airheads {
 
-	class AppWindow;
+class App;
+class AppWindow;
 
-	class Gui {
-	public:
+class Gui {
+ public:
 
-		Gui(AppWindow* appWindow);
+  Gui(App *app, AppWindow *app_window);
 
-		void Update();
+  void Update();
 
-	private:
+ private:
 
-		void SetActiveCamera(int index);
-		void UpdateCameraTexture();
+  void SetActiveCamera(int index);
+  unsigned char *GetNextFramePixels();
+  void UpdateCameraTexture(unsigned char *pixels = nullptr);
+  void UpdateStatsContent();
+  void UpdateMainGuiContent();
 
-		AppWindow* m_appWindow;
-		videoInput m_videoInput;
-		
-		bool m_shouldUpdateAvailableCameras = true;
-		std::vector<std::string> m_cameraNames;
-		
-		int m_selectedCamera = 0;
-		int m_activeCamera = -1;
-		
-		SDL_Texture* m_cameraRenderTex = nullptr;
+  App *app_;
+  AppWindow *app_window_;
+  videoInput video_input_;
 
-		bool m_blueFilter = false;
-		int m_blueValue = 128;
-	};
+  bool should_update_available_cameras_ = true;
+  std::vector<std::string> camera_names_;
+
+  int selected_camera_ = 0;
+  int active_camera_ = -1;
+  bool is_camera_mirrored_ = true;
+
+  SDL_Texture *camera_render_tex_ = nullptr;
+
+  VideoProcessorPipeline processor_pipeline_;
+
+  bool is_stats_visible_ = true;
+  bool is_pipeline_config_visible_ = true;
+  bool is_saturation_map_visible_ = true;
+  bool is_value_map_visible_ = true;
+  bool is_cluster_map_visible_ = true;
+  bool is_ruler_visible_ = false;
+
+  GuiMatRenderer saturation_map_renderer_;
+  GuiMatRenderer value_map_renderer_;
+  GuiMatRenderer cluster_map_renderer_;
+  void UpdateConfigContent();
+};
 
 }

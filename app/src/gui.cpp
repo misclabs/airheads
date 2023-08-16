@@ -6,128 +6,307 @@
 
 #include "imgui.h"
 
-#include <algorithm>
 #include <cassert>
-#include <climits>
 
 namespace Airheads {
 
-	Gui::Gui(AppWindow* appWindow) {
-		assert(appWindow);
+void DrawRuler(ImDrawList *draw, ImVec2 left_side, float window_pixels_per_cm, ImU32 color, float line_width) {
+  ImVec2 right_side = {left_side.x + window_pixels_per_cm, left_side.y};
 
-		m_appWindow = appWindow;
-	}
+  draw->AddLine({left_side.x, left_side.y + 6}, {left_side.x, left_side.y - 6}, color, line_width);
+  draw->AddLine({right_side.x, right_side.y + 6}, {right_side.x, right_side.y - 6}, color, line_width);
+  draw->AddLine(left_side, right_side, color, line_width);
+  draw->AddText({right_side.x + 3, right_side.y}, color, "1cm");
+}
 
-	void Gui::Update() {
-		if (m_shouldUpdateAvailableCameras) {
-			m_shouldUpdateAvailableCameras = false;
-			m_cameraNames = m_videoInput.getDeviceList();
-		}
+template<typename ContentCallback>
+void ImGuiWindow(const char *name, ContentCallback content, bool *open = nullptr, ImGuiWindowFlags flag = 0) {
+  if (open != nullptr && !*open)
+    return;
 
-		constexpr ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoTitleBar |
-			ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
-			ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoDocking;
-		ImGui::Begin("Content", nullptr, windowFlags);
-		int w, h;
-		SDL_GetWindowSize(m_appWindow->NativeWindow(), &w, &h);
-		ImGui::SetWindowSize({ (float)w, (float)h });
-		ImGui::SetWindowPos({ 0, 0 });
+  if (ImGui::Begin(name, open))
+    content();
 
-		ImGui::Text("FPS: %f", ImGui::GetIO().Framerate);
+  ImGui::End();
+}
 
-		// Camera Selection Combobox
-		{
-			const char* comboPreview = m_selectedCamera >= 0 && m_selectedCamera < m_cameraNames.size() ?
-				m_cameraNames[m_selectedCamera].c_str() :
-				"No camera detected";
-			if (ImGui::BeginCombo("###Camera", comboPreview, 0)) {
-				for (int i = 0; i < m_cameraNames.size(); ++i) {
-					const bool is_selected = (m_selectedCamera == i);
-					if (ImGui::Selectable(m_cameraNames[i].c_str(), is_selected))
-						m_selectedCamera = i;
+Gui::Gui(App *app, AppWindow *app_window)
+    : saturation_map_renderer_(app_window->NativeRenderer(), &processor_pipeline_.Context().saturation_map_),
+      value_map_renderer_(app_window->NativeRenderer(), &processor_pipeline_.Context().value_map_),
+      cluster_map_renderer_(app_window->NativeRenderer(), &processor_pipeline_.Context().cluster_map_) {
+  assert(app);
+  assert(app_window);
 
-					// Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
-					if (is_selected)
-						ImGui::SetItemDefaultFocus();
-				}
-				ImGui::EndCombo();
-			}
-		}
-		ImGui::SameLine();
-		if (m_selectedCamera >= 0 && m_selectedCamera < m_cameraNames.size()) {
-			if (m_selectedCamera == m_activeCamera) {
-				if (ImGui::Button("Stop")) {
-					SetActiveCamera(-1);
-				}
-			} else {
-				if (ImGui::Button("Start")) {
-					SetActiveCamera(m_selectedCamera);
-				}
-			}
-		} else {
-			ImGui::BeginDisabled();
-			ImGui::Button("Start");
-			ImGui::EndDisabled();
-		}
+  app_ = app;
+  app_window_ = app_window;
 
-		if (m_activeCamera != -1) {
-			ImGui::Checkbox("Add Blue channel", &m_blueFilter);
-			ImGui::SameLine();
-			ImGui::SliderInt("###blue_channel_value", &m_blueValue, -UCHAR_MAX, UCHAR_MAX);
+  LoadProcessors(processor_pipeline_);
+}
 
-			UpdateCameraTexture();
+void Gui::Update() {
+  if (should_update_available_cameras_) {
+    should_update_available_cameras_ = false;
+    camera_names_ = videoInput::getDeviceList();
+  }
 
-			ImVec2 cameraSize{ (float)m_videoInput.getWidth(m_activeCamera), (float)m_videoInput.getHeight(m_activeCamera) };
-			ImGui::Text("Width:%d Height:%d", (int)cameraSize.x, (int)cameraSize.y);
-			ImGui::Text("Buffer format: BGR24");
-			ImGui::Text("Buffer size (bytes):%d", m_videoInput.getSize(m_activeCamera));
-			ImGui::Image(m_cameraRenderTex, cameraSize);
-		}
-		ImGui::End();
-	}
+  ImGui::DockSpaceOverViewport();
 
-	void Gui::SetActiveCamera(int index) {
-		if (index == m_activeCamera)
-			return;
+  if (ImGui::BeginMainMenuBar()) {
+    if (ImGui::BeginMenu("File")) {
+      if (ImGui::MenuItem("Exit", "Cmd+Q")) {
+        app_->StopMainLoop();
+      }
+      ImGui::EndMenu();
+    }
+    if (ImGui::BeginMenu("View")) {
+      ImGui::MenuItem("Pipeline Config", nullptr, &is_pipeline_config_visible_);
+      ImGui::MenuItem("Stats", nullptr, &is_stats_visible_);
+      ImGui::MenuItem("Ruler", nullptr, &is_ruler_visible_);
+      ImGui::Separator();
+      ImGui::MenuItem("Saturation Map", nullptr, &is_saturation_map_visible_);
+      ImGui::MenuItem("Value Map", nullptr, &is_value_map_visible_);
+      ImGui::MenuItem("Cluster Map", nullptr, &is_cluster_map_visible_);
+      ImGui::EndMenu();
+    }
 
-		if (m_activeCamera >= 0) {
-			m_videoInput.stopDevice(m_activeCamera);
-			SDL_DestroyTexture(m_cameraRenderTex);
-			m_cameraRenderTex = nullptr;
-		}
+    ImGui::EndMainMenuBar();
+  }
 
-		m_activeCamera = index;
-		if (m_activeCamera == -1)
-			return;
+  ImGuiWindow("Pipeline Config", [this]() -> void { UpdateConfigContent(); }, &is_pipeline_config_visible_);
 
-		m_videoInput.setupDevice(m_activeCamera);
-		m_cameraRenderTex = SDL_CreateTexture(m_appWindow->NativeRenderer(),
-			SDL_PIXELFORMAT_BGR24, SDL_TEXTUREACCESS_STREAMING,
-			m_videoInput.getWidth(m_activeCamera), m_videoInput.getHeight(m_activeCamera)
-		);
-		if (!m_cameraRenderTex) {
-			APP_ERROR("Error creating camera texture: {}", SDL_GetError());
-		}
+  ImGui::Begin("Actually the Real App", nullptr);
+  UpdateMainGuiContent();
+  ImGui::End();
 
-		UpdateCameraTexture();
-	}
+  ImGuiWindow("Stats",
+              [this]() -> void { UpdateStatsContent(); }, &is_stats_visible_);
 
-	void Gui::UpdateCameraTexture() {
-		const SDL_Rect rect{ 0, 0, m_videoInput.getWidth(m_activeCamera), m_videoInput.getHeight(m_activeCamera) };
-		const int pitch = rect.w * 3;
-		const int bufferSizeInBytes = m_videoInput.getSize(m_activeCamera);
-		unsigned char* const pixels = m_videoInput.getPixels(m_activeCamera, false, true);
+  ImGuiWindow("Saturation Map", [this]() -> void {
+    ImGui::Text("Saturation Map (threshold applied)");
+    saturation_map_renderer_.UpdateTexture();
+    saturation_map_renderer_.RenderImage();
+  }, &is_saturation_map_visible_);
+  ImGuiWindow("Value Map", [this]() -> void {
+    ImGui::Text("Value Map (inverted, threshold applied)");
+    value_map_renderer_.UpdateTexture();
+    value_map_renderer_.RenderImage();
+  }, &is_value_map_visible_);
+  ImGuiWindow("Cluster Map", [this]() -> void {
+    ImGui::Text("Cluster Map (saturation anded w/ value map)");
+    cluster_map_renderer_.UpdateTexture();
+    cluster_map_renderer_.RenderImage();
+  }, &is_cluster_map_visible_);
+}
 
-		if (m_blueFilter) {
-			for (int i = 0; i < bufferSizeInBytes; i += 3) {
-				pixels[i] = (unsigned char)std::clamp(pixels[i] + m_blueValue, 0, 255);
-			}
-		}
+void Gui::UpdateConfigContent() {
+  ImGuiWindow("Pipeline Config", [this]() -> void {
+    ImGui::Checkbox("Mirror Camera", &is_camera_mirrored_);
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
+      ImGui::SetTooltip("Display the camera feed as a mirror image?");
 
-		int result = SDL_UpdateTexture(m_cameraRenderTex,
-			&rect, pixels, pitch);
-		if (result) {
-			APP_ERROR("Error updating camera texture: {}", SDL_GetError());
-		}
-	}
+    ImGui::Checkbox("Show Ruler", &is_ruler_visible_);
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
+      ImGui::SetTooltip("Display the ruler overlay on the camera feed?");
+
+    ImGui::SliderFloat("pixels/cm", &processor_pipeline_.Context().frame_pixels_per_cm_, 3, 100);
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
+      ImGui::SetTooltip("Approximate pixels per cm at the distances dots are from the camera.");
+
+    ImGui::Separator();
+
+    processor_pipeline_.UpdateConfigGui();
+  }, &is_pipeline_config_visible_);
+}
+
+void Gui::UpdateStatsContent() {
+  ImGui::Text("FPS: %f", ImGui::GetIO().Framerate);
+
+  if (active_camera_ != -1) {
+    ImGui::Separator();
+    ImGui::Text("Camera Input");
+    ImVec2 cameraSize{(float) video_input_.getWidth(active_camera_), (float) video_input_.getHeight(active_camera_)};
+    ImGui::Text("Width:%d Height:%d", (int) cameraSize.x, (int) cameraSize.y);
+    ImGui::Text("Buffer size (bytes):%d", video_input_.getSize(active_camera_));
+
+    processor_pipeline_.UpdateStatsGui();
+  } else {
+    ImGui::Text("No camera active");
+  }
+}
+
+void Gui::UpdateMainGuiContent() {
+  // Camera Selection Combobox
+  {
+    const char *combo_preview = selected_camera_ >= 0 && selected_camera_ < camera_names_.size() ?
+                                camera_names_[selected_camera_].c_str() :
+                                "No camera detected";
+    if (ImGui::BeginCombo("###Camera", combo_preview, 0)) {
+      for (int i = 0; i < camera_names_.size(); ++i) {
+        const bool is_selected = (selected_camera_ == i);
+        if (ImGui::Selectable(camera_names_[i].c_str(), is_selected))
+          selected_camera_ = i;
+
+        // Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
+        if (is_selected)
+          ImGui::SetItemDefaultFocus();
+      }
+      ImGui::EndCombo();
+    }
+  }
+  ImGui::SameLine();
+  constexpr const char *kStartVideoCaptureText = "Start Video Capture";
+  if (selected_camera_ >= 0 && selected_camera_ < camera_names_.size()) {
+    if (selected_camera_ == active_camera_) {
+      if (ImGui::Button("Stop Video Capture")) {
+        SetActiveCamera(-1);
+      }
+    } else {
+      if (ImGui::Button(kStartVideoCaptureText)) {
+        SetActiveCamera(selected_camera_);
+      }
+    }
+  } else {
+    ImGui::BeginDisabled();
+    ImGui::Button(kStartVideoCaptureText);
+    ImGui::EndDisabled();
+  }
+
+  if (active_camera_ != -1) {
+    UpdateCameraTexture();
+
+    ImVec2 camera_size{(float) video_input_.getWidth(active_camera_), (float) video_input_.getHeight(active_camera_)};
+    ImVec2 avail_size = ImGui::GetContentRegionAvail();
+    float scale;
+    ImVec2 render_size;
+    if (camera_size.x / camera_size.y > avail_size.x / avail_size.y) {
+      // fit width
+      scale = avail_size.x / camera_size.x;
+      render_size = {camera_size.x * scale, camera_size.y * scale};
+    } else {
+      // fit height
+      scale = avail_size.y / camera_size.y;
+      render_size = {camera_size.x * scale, camera_size.y * scale};
+    }
+    ImVec2 cursor = ImGui::GetCursorScreenPos();
+
+    ImGui::Image(camera_render_tex_, render_size);
+
+    ImDrawList *draw = ImGui::GetWindowDrawList();
+
+    const ImU32 cluster_color = IM_COL32(0, 255, 255, 255 / 3 * 2);
+    const ImU32 target_valid_color = IM_COL32(0, 255, 0, 255 / 3 * 2);
+    const ImU32 target_invalid_color = IM_COL32(255, 0, 0, 255 / 3 * 2);
+
+    const auto &context = processor_pipeline_.Context();
+    const float target_radius_px = context.CmToPx(context.target_diameter_cm_ / 2.0f);
+
+    auto draw_cluster_indicator = [&](const ClusterResult &cluster) {
+      ImVec2 center = {cursor.x + (float) cluster.center.x * scale, cursor.y + (float) cluster.center.y * scale};
+      float radius = target_radius_px + target_radius_px * 2 * (float) cluster.size / (float) context.max_cluster_size_px_;
+      draw->AddCircle(center, radius, cluster_color);
+    };
+    if (context.IsClusterValid(context.TopCluster())) {
+      draw_cluster_indicator(context.TopCluster());
+    }
+    if (context.IsClusterValid(context.BotCluster())) {
+      draw_cluster_indicator(context.BotCluster());
+    }
+
+    float line_width = processor_pipeline_.Context().target_diameter_cm_ / 3.0f;
+    const auto is_top_cluster_valid = context.IsClusterValid(context.TopCluster());
+    const auto is_bot_cluster_valid = context.IsClusterValid(context.BotCluster());
+    ImVec2 top_target = {
+        cursor.x + (float) context.TopTargetLoc().x * scale,
+        cursor.y + (float) context.TopTargetLoc().y * scale};
+    draw->AddCircleFilled(top_target, target_radius_px, is_top_cluster_valid ? target_valid_color : target_invalid_color);
+
+    ImVec2 bot_target = {
+        cursor.x + (float) context.BotTargetLoc().x * scale,
+        cursor.y + (float) context.BotTargetLoc().y * scale};
+    draw->AddCircleFilled(bot_target, target_radius_px, is_bot_cluster_valid ? target_valid_color : target_invalid_color);
+
+    if (is_top_cluster_valid && is_bot_cluster_valid) {
+      draw->AddLine(top_target, bot_target, target_valid_color, line_width);
+    }
+
+    if (is_ruler_visible_) {
+      ImU32 ruler_color = IM_COL32(255, 255, 0, 255 / 3 * 2);
+      ImVec2 center_pt = {
+          cursor.x + render_size.x / 2,
+          cursor.y + render_size.y / 2
+      };
+      float cm_in_window_pixels = context.frame_pixels_per_cm_ * scale;
+      DrawRuler(draw, center_pt, cm_in_window_pixels, ruler_color, line_width);
+    }
+  }
+}
+
+void Gui::SetActiveCamera(int index) {
+  if (index == active_camera_)
+    return;
+
+  if (active_camera_ >= 0) {
+    processor_pipeline_.StopCapture();
+    video_input_.stopDevice(active_camera_);
+    SDL_DestroyTexture(camera_render_tex_);
+    camera_render_tex_ = nullptr;
+  }
+
+  active_camera_ = index;
+  if (active_camera_ == -1)
+    return;
+
+  video_input_.setupDevice(active_camera_);
+  camera_render_tex_ = SDL_CreateTexture(app_window_->NativeRenderer(),
+                                         SDL_PIXELFORMAT_BGR24, SDL_TEXTUREACCESS_STREAMING,
+                                         video_input_.getWidth(active_camera_), video_input_.getHeight(active_camera_)
+  );
+  if (!camera_render_tex_) {
+    APP_ERROR("Error creating camera texture: {}", SDL_GetError());
+  }
+
+  auto pixels = GetNextFramePixels();
+  processor_pipeline_.StartCapture(
+      video_input_.getWidth(active_camera_),
+      video_input_.getHeight(active_camera_),
+      pixels);
+
+  UpdateCameraTexture(pixels);
+}
+
+unsigned char *Gui::GetNextFramePixels() {
+  unsigned char *pixels = video_input_.getPixels(active_camera_, false, true);
+  if (is_camera_mirrored_) {
+    const int frame_width = video_input_.getWidth(active_camera_);
+    const int frame_height = video_input_.getHeight(active_camera_);
+    for (int y = 0; y < frame_height; ++y) {
+      for (int x = 0; x < frame_width - x - 1; ++x) {
+        int row_index = y * frame_width * 3;
+        int left_index = x * 3;
+        int right_index = (frame_width - x - 1) * 3;
+        std::swap<unsigned char>(pixels[row_index + left_index], pixels[row_index + right_index]);
+        std::swap<unsigned char>(pixels[row_index + left_index + 1], pixels[row_index + right_index + 1]);
+        std::swap<unsigned char>(pixels[row_index + left_index + 2], pixels[row_index + right_index + 2]);
+      }
+    }
+  }
+
+  return pixels;
+}
+
+void Gui::UpdateCameraTexture(unsigned char *pixels) {
+  const SDL_Rect rect{0, 0, video_input_.getWidth(active_camera_), video_input_.getHeight(active_camera_)};
+  const int pitch = rect.w * 3;
+  if (pixels == nullptr)
+    pixels = GetNextFramePixels();
+
+  processor_pipeline_.ProcessFrame();
+
+  int result = SDL_UpdateTexture(camera_render_tex_,
+                                 &rect, pixels, pitch);
+  if (result) {
+    APP_ERROR("Error updating camera texture: {}", SDL_GetError());
+  }
+}
+
 }

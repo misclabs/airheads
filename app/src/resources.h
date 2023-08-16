@@ -7,7 +7,7 @@ namespace Airheads {
 
 	class Resources {
 	public:
-		[[nodiscard]] static std::filesystem::path GetFontPath(const std::string_view& font_file);
+		[[nodiscard]] static std::filesystem::path GetFontPath(const std::string_view& filename);
 	};
 
 }

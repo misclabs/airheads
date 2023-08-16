@@ -11,14 +11,14 @@
 #include "imgui.h"
 
 namespace Airheads {
-	App::UniquePtr App::CreateApplication() {
+	AppUniquePtr App::CreateApplication() {
 		const std::string appTitle{"Airheads"};
 
 		if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_GAMECONTROLLER) != 0) {
 			APP_ERROR("Error: {}", SDL_GetError());
 			return nullptr;
 		}
-		AppWindow::UniquePtr windowPtr = std::make_unique<Airheads::AppWindow>(Airheads::AppWindow::Settings{appTitle});
+		AppWindowUniquePtr windowPtr = std::make_unique<Airheads::AppWindow>(Airheads::AppWindow::Settings{appTitle});
 
 		const char* userConfigPath = SDL_GetPrefPath(Conf::COMPANY_NAMESPACE.c_str(), Conf::APP_NAME.c_str());
 		APP_INFO("User config path: {}", userConfigPath);
@@ -35,7 +35,7 @@ namespace Airheads {
 	}
 
 	void App::StopMainLoop() {
-		g_shouldKeepLooping = false;
+		m_shouldKeepLooping = false;
 	}
 
 	ExitStatus App::RunMainLoop() {
@@ -56,7 +56,7 @@ namespace Airheads {
 		APP_DEBUG("User config path: {}", user_config_path);
 
 		// Absolute imgui.ini path to preserve settings independent of app location.
-		static const std::string imgui_ini_filename{g_userConfigPath + "imgui.ini"};
+		static const std::string imgui_ini_filename{m_userConfigPath + "imgui.ini"};
 		io.IniFilename = imgui_ini_filename.c_str();
 
 		// ImGUI font
@@ -72,10 +72,10 @@ namespace Airheads {
 		ImGui_ImplSDL2_InitForSDLRenderer(
 			m_windowPtr->NativeWindow(), m_windowPtr->NativeRenderer());
 		ImGui_ImplSDLRenderer_Init(m_windowPtr->NativeRenderer());
-		Gui gui(m_windowPtr.get());
+		Gui gui(this, m_windowPtr.get());
 
-		g_shouldKeepLooping = true;
-		while (g_shouldKeepLooping) {
+		m_shouldKeepLooping = true;
+		while (m_shouldKeepLooping) {
 			SDL_Event event{};
 			while (SDL_PollEvent(&event) == 1) {
 				ImGui_ImplSDL2_ProcessEvent(&event);
@@ -111,9 +111,9 @@ namespace Airheads {
 		return m_exitStatus;
 	}
 
-	App::App(AppWindow::UniquePtr platformWindowPtr, const char* userConfigPath) :
+	App::App(AppWindowUniquePtr platformWindowPtr, const char* userConfigPath) :
 		m_windowPtr{ std::move(platformWindowPtr) },
-		g_userConfigPath{ userConfigPath }
+		m_userConfigPath{ userConfigPath }
 	{
 		assert(m_windowPtr);
 	}
