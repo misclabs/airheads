@@ -16,7 +16,7 @@ void DrawRuler(ImDrawList *draw, ImVec2 left_side, float window_pixels_per_cm, I
   draw->AddLine({left_side.x, left_side.y + 6}, {left_side.x, left_side.y - 6}, color, line_width);
   draw->AddLine({right_side.x, right_side.y + 6}, {right_side.x, right_side.y - 6}, color, line_width);
   draw->AddLine(left_side, right_side, color, line_width);
-  draw->AddText({right_side.x + 3, right_side.y }, color, "1cm");
+  draw->AddText({right_side.x + 3, right_side.y}, color, "1cm");
 }
 
 template<typename ContentCallback>
@@ -193,38 +193,40 @@ void Gui::UpdateMainGuiContent() {
 
     ImDrawList *draw = ImGui::GetWindowDrawList();
 
-    ImU32 cluster_color = IM_COL32(0, 255, 255, 255 / 3 * 2);
-    ImU32 dot_color = IM_COL32(0, 255, 0, 255 / 3 * 2);
-    float dot_radius = 6.0f;
+    const ImU32 cluster_color = IM_COL32(0, 255, 255, 255 / 3 * 2);
+    const ImU32 target_valid_color = IM_COL32(0, 255, 0, 255 / 3 * 2);
+    const ImU32 target_invalid_color = IM_COL32(255, 0, 0, 255 / 3 * 2);
 
-    auto &context = processor_pipeline_.Context();
-    auto top_cluster = context.TopCluster();
-    if (context.IsClusterValid(top_cluster)) {
-      ImVec2 center = {cursor.x + (float) top_cluster.center.x * scale, cursor.y + (float) top_cluster.center.y * scale};
-      float radius = dot_radius + dot_radius * 2 * (float) top_cluster.size / (float) context.max_cluster_size_px_;
+    const auto &context = processor_pipeline_.Context();
+    const float target_radius_px = context.CmToPx(context.target_diameter_cm_ / 2.0f);
+
+    auto draw_cluster_indicator = [&](const ClusterResult &cluster) {
+      ImVec2 center = {cursor.x + (float) cluster.center.x * scale, cursor.y + (float) cluster.center.y * scale};
+      float radius = target_radius_px + target_radius_px * 2 * (float) cluster.size / (float) context.max_cluster_size_px_;
       draw->AddCircle(center, radius, cluster_color);
+    };
+    if (context.IsClusterValid(context.TopCluster())) {
+      draw_cluster_indicator(context.TopCluster());
+    }
+    if (context.IsClusterValid(context.BotCluster())) {
+      draw_cluster_indicator(context.BotCluster());
     }
 
-    auto bot_cluster = context.BotCluster();
-    if (context.IsClusterValid(bot_cluster)) {
-      ImVec2 center = {cursor.x + (float) bot_cluster.center.x * scale, cursor.y + (float) bot_cluster.center.y * scale};
-      float radius = dot_radius + dot_radius * 2 * (float) bot_cluster.size / (float) context.max_cluster_size_px_;
-      draw->AddCircle(center, radius, cluster_color);
-    }
+    float line_width = processor_pipeline_.Context().target_diameter_cm_ / 3.0f;
+    const auto is_top_cluster_valid = context.IsClusterValid(context.TopCluster());
+    const auto is_bot_cluster_valid = context.IsClusterValid(context.BotCluster());
+    ImVec2 top_target = {
+        cursor.x + (float) context.TopTargetLoc().x * scale,
+        cursor.y + (float) context.TopTargetLoc().y * scale};
+    draw->AddCircleFilled(top_target, target_radius_px, is_top_cluster_valid ? target_valid_color : target_invalid_color);
 
-    float line_width = 2.0f;
-    ImVec2 top_dot = {
-        cursor.x + (float) context.TopDotLoc().x * scale,
-        cursor.y + (float) context.TopDotLoc().y * scale};
-    draw->AddCircleFilled(top_dot, dot_radius, dot_color);
+    ImVec2 bot_target = {
+        cursor.x + (float) context.BotTargetLoc().x * scale,
+        cursor.y + (float) context.BotTargetLoc().y * scale};
+    draw->AddCircleFilled(bot_target, target_radius_px, is_bot_cluster_valid ? target_valid_color : target_invalid_color);
 
-    ImVec2 bot_dot = {
-        cursor.x + (float) context.BotDotLoc().x * scale,
-        cursor.y + (float) context.BotDotLoc().y * scale};
-    draw->AddCircleFilled(bot_dot, dot_radius, dot_color);
-
-    if (context.IsClusterValid(top_cluster) && context.IsClusterValid(bot_cluster)) {
-      draw->AddLine(top_dot, bot_dot, dot_color, line_width);
+    if (is_top_cluster_valid && is_bot_cluster_valid) {
+      draw->AddLine(top_target, bot_target, target_valid_color, line_width);
     }
 
     if (is_ruler_visible_) {
@@ -238,7 +240,6 @@ void Gui::UpdateMainGuiContent() {
     }
   }
 }
-
 
 void Gui::SetActiveCamera(int index) {
   if (index == active_camera_)

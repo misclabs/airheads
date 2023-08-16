@@ -20,13 +20,14 @@ void ClusterProc::ProcessFrame(ProcessingContext &context) {
   if (context.cluster_map_.empty())
     return;
 
-  int max_seek_radius = (int) std::max(100.0, 0.65 * context.DotsDistPx());
-
+  int max_seek_radius = (int) std::max(context.CmToPx(3.0f), 0.65f * (float) context.TargetsDistPx());
+  int seek_step = (int) std::min(1.0f, context.CmToPx(context.target_diameter_cm_/2.0f));
   auto get_cluster = [&](cv::Point seed_guess) {
+
     auto seed = Cluster::FindSeed(context.cluster_map_,
                                   seed_guess,
                                   context.InvertedValueThreshold(),
-                                  max_seek_radius);
+                                  max_seek_radius, seek_step);
     if (seed) {
       pixels_.clear();
       Cluster::ClusterFill(context.cluster_map_, *seed, (uchar) context.InvertedValueThreshold(),
@@ -38,14 +39,14 @@ void ClusterProc::ProcessFrame(ProcessingContext &context) {
       else
         metrics = Cluster::ClusterMetrics::FromPixels(pixels_);
 
-      return ClusterResult{metrics.center, metrics.sizePx};
+      return ClusterResult{metrics.center, metrics.size_px};
     }
 
     return ClusterResult{seed_guess};
   };
 
-  ClusterResult upper_cluster_result = get_cluster(context.TopDotLoc());
-  ClusterResult lower_cluster_result = get_cluster(context.BotDotLoc());
+  ClusterResult upper_cluster_result = get_cluster(context.TopTargetLoc());
+  ClusterResult lower_cluster_result = get_cluster(context.BotTargetLoc());
 
   context.UpdateClusterResults(upper_cluster_result, lower_cluster_result);
 }

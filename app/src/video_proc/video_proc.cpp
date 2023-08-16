@@ -1,19 +1,10 @@
 #include "video_proc.h"
 #include "cluster_map_proc.h"
 #include "cluster_proc.h"
-
 #include "resources.h"
 #include "imgui.h"
 
-#include <limits>
-
 namespace Airheads {
-
-int DistanceBetween(cv::Point a, cv::Point b) {
-  auto dx = b.x - a.x;
-  auto dy = b.y - a.y;
-  return (int) sqrt(dx * dx + dy * dy);
-}
 
 void VideoProcessorPipeline::AddProcessor(VideoProcessorUniquePtr processor) {
   assert(processor);
@@ -56,17 +47,17 @@ void VideoProcessorPipeline::UpdateConfigGui() {
 
 void VideoProcessorPipeline::UpdateStatsGui() {
   ImGui::Separator();
-  ImGui::Text("Intercluster Distance: %dpx", context_.DotsDistPx());
+  ImGui::Text("Intercluster Distance: %.1fmm", context_.PxToCm((float)context_.TargetsDistPx())*10.0f);
 
-  ImGui::Text("Min distance: %dpx", context_.MinDotDistPx());
-  ImGui::Text("Max distance: %dpx", context_.MaxDotDistPx());
-  double dmdm = context_.MaxDotDistPx() / (double) context_.MinDotDistPx();
+  ImGui::Text("Min distance: %.1fmm", context_.PxToCm((float)context_.MinTargetsDistPx())*10.0f);
+  ImGui::Text("Max distance: %.1fmm", context_.PxToCm((float)context_.MaxTargetsDistPx())*10.0f);
+  float dmdm = (float)context_.MaxTargetsDistPx() / (float) context_.MinTargetsDistPx();
   //double dmdm_thresh = 1.08;
   //if dmdm > dmdm_thresh:
   //	dm_color = overlay_color
   //else:
   //	dm_color = nope_color
-  ImGui::Text("Dmax/Dmin: %.3f", dmdm);
+  ImGui::Text("Max distance/Min distance: %.1f", context_.PxToCm(dmdm)*10.0f);
 
   ForEach([](VideoProcessor &processor) {
     ImGui::Separator();
@@ -93,43 +84,6 @@ void VideoProcessorPipeline::ForEach(const std::function<void(VideoProcessor &)>
 void LoadProcessors(VideoProcessorPipeline &registry) {
   registry.AddProcessor(std::move(ClusterMapProc::Create()));
   registry.AddProcessor(std::move(ClusterProc::Create()));
-}
-
-void ProcessingContext::ResetOutput() {
-  top_dot_loc_ = {frame.cols / 2, (int) (frame.rows * 0.3)};
-  bot_dot_loc_ = {frame.cols / 2, (int) (frame.rows * 0.6)};
-  dots_dist_px_ = DistanceBetween(top_dot_loc_, bot_dot_loc_);
-  min_dots_dist_px_ = std::numeric_limits<int>::max();
-  max_dots_dist_px_ = 0;
-  top_cluster_ = {};
-  bot_cluster_ = {};
-}
-
-[[nodiscard]] cv::Point ProcessingContext::ClampLocToFrame(cv::Point pt) const {
-  return {
-      std::clamp(pt.x, 0, frame.cols),
-      std::clamp(pt.y, 0, frame.rows)
-  };
-}
-
-void ProcessingContext::UpdateClusterResults(ClusterResult top, ClusterResult bot) {
-  top_cluster_ = top;
-  bot_cluster_ = bot;
-
-  if (IsClusterValid(top)) {
-    top_dot_loc_ = ClampLocToFrame(top.center);
-  }
-  if (IsClusterValid(bot)) {
-    bot_dot_loc_ = ClampLocToFrame(bot.center);
-  }
-
-  // Only update measurements when both clusters are valid
-  if (IsClusterValid(top) && IsClusterValid(bot)) {
-    dots_dist_px_ = DistanceBetween(top_dot_loc_, bot_dot_loc_);
-
-    min_dots_dist_px_ = std::min(min_dots_dist_px_, dots_dist_px_);
-    max_dots_dist_px_ = std::max(max_dots_dist_px_, dots_dist_px_);
-  }
 }
 
 }

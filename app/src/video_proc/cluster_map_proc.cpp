@@ -15,7 +15,7 @@ const std::string &ClusterMapProc::Name() const {
 }
 
 void ClusterMapProc::ProcessFrame(ProcessingContext &context) {
-  cv::cvtColor(context.frame, hsv, cv::COLOR_BGR2HSV);
+  cv::cvtColor(context.Frame(), hsv, cv::COLOR_BGR2HSV);
 
   context.saturation_map_.create(hsv.rows, hsv.cols, CV_8UC1);
   context.value_map_.create(hsv.rows, hsv.cols, CV_8UC1);
