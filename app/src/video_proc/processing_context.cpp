@@ -29,15 +29,15 @@ void ProcessingContext::UpdateClusterResults(ClusterResult top, ClusterResult bo
   top_cluster_ = top;
   bot_cluster_ = bot;
 
-  if (IsClusterValid(top)) {
+  if (mode_ == ProcessingMode::kTesting && IsClusterValid(top)) {
     top_target_loc_ = ClampLocToFrame(top.center);
   }
-  if (IsClusterValid(bot)) {
+  if (mode_ == ProcessingMode::kTesting && IsClusterValid(bot)) {
     bot_target_loc_ = ClampLocToFrame(bot.center);
   }
 
   // Only update measurements when both clusters are valid
-  if (IsClusterValid(top) && IsClusterValid(bot)) {
+  if (mode_ == ProcessingMode::kTesting && IsClusterValid(top) && IsClusterValid(bot)) {
     targets_dist_px_ = DistanceBetween(top_target_loc_, bot_target_loc_);
 
     min_targets_dist_px_ = std::min(min_targets_dist_px_, targets_dist_px_);

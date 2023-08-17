@@ -1,7 +1,7 @@
 #include "app.h"
 
 #include "dpi_handler.h"
-#include "gui.h"
+#include "developer_gui.h"
 #include "log.h"
 #include "project_conf.h"
 #include "resources.h"
@@ -72,7 +72,7 @@ namespace Airheads {
 		ImGui_ImplSDL2_InitForSDLRenderer(
 			m_windowPtr->NativeWindow(), m_windowPtr->NativeRenderer());
 		ImGui_ImplSDLRenderer_Init(m_windowPtr->NativeRenderer());
-		Gui gui(this, m_windowPtr.get());
+		DeveloperGui gui(this, m_windowPtr.get());
 
 		m_shouldKeepLooping = true;
 		while (m_shouldKeepLooping) {

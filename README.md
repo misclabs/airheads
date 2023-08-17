@@ -1,7 +1,7 @@
 # Airheads
 A simple project demo of capturing frames from a webcam, manipulating the frame, and displaying it in a window.
 
-Most of the interesting stuff happens in [gui.cpp](app/src/gui.cpp). Specificlly `Gui::UpdateCameraTexture()` grabs a frame from the webcam, does some stuff with it, and then copies it to a texture for display.
+Most of the interesting stuff happens in [gui.cpp](app/src/developer_gui.cpp). Specificlly `DeveloperGui::CaptureAndProcessCameraFrame()` grabs a frame from the webcam, does some stuff with it, and then copies it to a texture for display.
 
 ## Dependencies and Credits
 

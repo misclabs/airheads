@@ -17,6 +17,11 @@ struct ClusterResult {
   int size = 0;
 };
 
+enum class ProcessingMode {
+  kCalibration,
+  kTesting
+};
+
 class ProcessingContext {
  public:
   void SetFrameBGR(int width, int height, unsigned char *data);
@@ -41,6 +46,8 @@ class ProcessingContext {
 
   [[nodiscard]] float CmToPx(float cm) const { return cm * frame_pixels_per_cm_; }
   [[nodiscard]] float PxToCm(float px) const { return px * 1.0f/frame_pixels_per_cm_; }
+
+  void SetMode(ProcessingMode mode) { mode_ = mode; }
 
   cv::Mat saturation_map_;
   cv::Mat value_map_;
@@ -74,6 +81,9 @@ class ProcessingContext {
   int targets_dist_px_;
   int min_targets_dist_px_;
   int max_targets_dist_px_;
+
+  ProcessingMode mode_;
+
 };
 
 inline void ProcessingContext::SetFrameBGR(int width, int height, unsigned char *data) {
