@@ -1,124 +1,102 @@
 #include "gui_mat_renderer.h"
-
+#include "vec.h"
 #include "imgui.h"
 #include "log.h"
-
 #include <cassert>
 
 namespace Airheads {
-	GuiMatRenderer::GuiMatRenderer(SDL_Renderer* sdlRenderer, cv::Mat* mat)
-		: m_mat{ mat }, m_sdlRenderer{ sdlRenderer }
-	{
-		assert(m_sdlRenderer);
-		assert(m_mat);
-	}
+GuiMatRenderer::GuiMatRenderer(SDL_Renderer *sdl_renderer, cv::Mat *mat)
+    : mat_{mat}, sdl_renderer_{sdl_renderer} {
+  assert(sdl_renderer_);
+  assert(mat_);
+}
 
-	GuiMatRenderer::~GuiMatRenderer() {
-		Clear();
-	}
+GuiMatRenderer::~GuiMatRenderer() {
+  Clear();
+}
 
-	bool GuiMatRenderer::IsMatRenderable() noexcept {
-		return !m_mat->empty()
-			&& m_mat->dims == 2
-			&& m_mat->depth() == CV_8U
-			&& m_mat->cols > 0 && m_mat->rows > 0
-			&& (m_mat->channels() == 3 || m_mat->channels() == 1);
-	}
+bool GuiMatRenderer::CanRenderMat() noexcept {
+  return !mat_->empty()
+      && mat_->dims == 2
+      && mat_->depth() == CV_8U
+      && mat_->cols > 0 && mat_->rows > 0
+      && (mat_->channels() == 3 || mat_->channels() == 1);
+}
 
-	bool GuiMatRenderer::DoesTextureMatchMat() {
-		return m_mat->depth() == CV_8U
-			&& m_mat->cols == m_texRect.w
-			&& m_mat->rows == m_texRect.h
-			&& m_mat->channels() == m_texChannels;
-	}
+bool GuiMatRenderer::IsTextureCompatibleWithMat() {
+  return texture_
+      && mat_->depth() == CV_8U
+      && mat_->cols == texture_.Size().x
+      && mat_->rows == texture_.Size().y
+      && mat_->channels() == NumChannels(texture_.Format());
+}
 
-	void GuiMatRenderer::Clear() {
-		if (m_sdlTexture) {
-			SDL_DestroyTexture(m_sdlTexture);
-			m_sdlTexture = nullptr;
-		}
-	}
+void GuiMatRenderer::Clear() {
+  texture_.Clear();
+}
 
-	void GuiMatRenderer::UpdateTexture() {
-		if (!IsMatRenderable()) {
-			if (m_sdlTexture)
-				Clear();
+void GuiMatRenderer::UpdateTexture() {
+  if (!CanRenderMat()) {
+    texture_.Clear();
+    return;
+  }
 
-			return;
-		}
+  if (!texture_ || !IsTextureCompatibleWithMat()) {
+    CreateTextureForMat();
+  }
 
-		if (!m_sdlTexture) {
-			if (!CreateTexture()) {
-                APP_ERROR("Could not create texture.");
-            }
-		} else if (!DoesTextureMatchMat()) {
-			Clear();
-			if (!CreateTexture()) {
-                APP_ERROR("Could not create texture.");
-            }
-		}
+  if (texture_) {
+    unsigned char *data;
+    if (mat_->channels() == 3) {
+      data = mat_->data;
+    } else { // m_mat->channels() == 1
+      data = display_buffer_.get();
 
-		if (m_sdlTexture) {
-			unsigned char* data;
-			if (m_texChannels == 3) {
-				data = m_mat->data;
-			} else { // m_texChannels == 1
-				data = m_displayBuffer.get();
+      for (int col = 0; col < mat_->cols; ++col) {
+        for (int row = 0; row < mat_->rows; ++row) {
+          const size_t mat_idx = (col + row * mat_->cols);
+          uchar value = mat_->data[mat_idx];
 
-				for (int col = 0; col < m_texRect.w; ++col) {
-					for (int row = 0; row < m_texRect.h; ++row) {
-						const size_t mIdx = (col + row * m_texRect.w);
-						uchar value = m_mat->data[mIdx];
-						
-						const size_t dpIdx = (col + row * m_texRect.w) * 3;
-						data[dpIdx] = value;
-						data[dpIdx + 1] = value;
-						data[dpIdx + 2] = value;
-					}
-				}
-			}
+          const size_t dp_idx = (col + row * mat_->cols) * 3;
+          data[dp_idx] = value;
+          data[dp_idx + 1] = value;
+          data[dp_idx + 2] = value;
+        }
+      }
+    }
 
-			int result = SDL_UpdateTexture(m_sdlTexture,
-				&m_texRect, data, m_texRect.w * 3);
-		}
+    texture_.Update({data, {mat_->cols, mat_->rows}, PixelFormat::kBGR24});
+  }
 
-	}
+}
 
-	void GuiMatRenderer::RenderImage() {
-		if (m_sdlTexture) {
-			ImVec2 texSize{ (float)m_texRect.w, (float)m_texRect.h };
-			ImVec2 availSize = ImGui::GetContentRegionAvail();
-			ImVec2 renderSize = [&] {
-				if (texSize.x / texSize.y > availSize.x / availSize.y) {
-					// fit width
-					float scale = availSize.x / texSize.x;
-					return ImVec2{ texSize.x * scale, texSize.y * scale };
-				}
-				// fit height
-				float scale = availSize.y / texSize.y;
-				return ImVec2{ texSize.x * scale, texSize.y * scale };
-			}();
-			ImGui::Image(m_sdlTexture, renderSize);
-		}
-	}
+void GuiMatRenderer::RenderImage() {
+  if (texture_) {
+    Vec2f tex_size_f{(float) texture_.Size().x, (float) texture_.Size().y};
+    Vec2f render_size = [&] {
+      ImVec2 avail_size = ImGui::GetContentRegionAvail();
+      if (tex_size_f.x / tex_size_f.y > avail_size.x / avail_size.y) {
+        // fit width
+        float scale = avail_size.x / tex_size_f.x;
+        return Vec2f{tex_size_f.x * scale, tex_size_f.y * scale};
+      }
+      // fit height
+      float scale = avail_size.y / tex_size_f.y;
+      return Vec2f{tex_size_f.x * scale, tex_size_f.y * scale};
+    }();
+    GuiImage(texture_, render_size);
+  }
+}
 
-	bool GuiMatRenderer::CreateTexture() {
-		if (!IsMatRenderable())
-			return false;
+void GuiMatRenderer::CreateTextureForMat() {
+  if (!CanRenderMat())
+    throw std::runtime_error("Cannot create texture for un-renderable Mat.");
 
-		m_texRect.w = m_mat->cols;
-		m_texRect.h = m_mat->rows;
-		m_texChannels = m_mat->channels();
+  texture_ = Texture::Make(sdl_renderer_, {mat_->cols, mat_->rows}, TextureFormat::kBGR24, TextureAccess::kStreaming);
 
-		m_sdlTexture = SDL_CreateTexture(m_sdlRenderer,
-			SDL_PIXELFORMAT_BGR24, SDL_TEXTUREACCESS_STREAMING,
-			m_texRect.w, m_texRect.h
-		);
+  if (mat_->channels() == 1) {
+    display_buffer_ = std::make_unique<unsigned char[]>(texture_.Size().x * texture_.Size().y * 3);
+  }
+}
 
-		if (m_texChannels == 1) {
-			m_displayBuffer = std::make_unique<unsigned char[]>(m_texRect.w * m_texRect.h * 3);
-		}
-
-		return true;
-	}
 }

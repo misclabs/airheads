@@ -31,8 +31,8 @@ namespace Airheads {
 		[[nodiscard]] SDL_Renderer* NativeRenderer() const;
 
 	private:
-		SDL_Window* m_window{ nullptr };
-		SDL_Renderer* m_renderer{ nullptr };
+		SDL_Window* sdl_window_{nullptr };
+		SDL_Renderer* sdl_renderer_{nullptr };
 	};
 
 }
