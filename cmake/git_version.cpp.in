@@ -1,0 +1,3 @@
+#include "git_version.h"
+
+const std::string kGitHash{"@GIT_HASH@"};
