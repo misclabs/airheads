@@ -65,10 +65,10 @@ void App::RunMainLoop() {
   // ImGUI font
   const float font_scaling_factor{DPIHandler::GetScale()};
   const float font_size{18.0F * font_scaling_factor};
-  const std::string fontPath{Resources::GetFontPath("Manrope.ttf").generic_string()};
+  const std::string font_path{Resources::GetFontPath("Manrope.ttf").generic_string()};
 
-  io.Fonts->AddFontFromFileTTF(fontPath.c_str(), font_size);
-  io.FontDefault = io.Fonts->AddFontFromFileTTF(fontPath.c_str(), font_size);
+  io.Fonts->AddFontFromFileTTF(font_path.c_str(), font_size);
+  io.FontDefault = io.Fonts->AddFontFromFileTTF(font_path.c_str(), font_size);
   DPIHandler::SetGlobalFontScaling(&io);
 
   // Setup Platform/Renderer backends
@@ -78,6 +78,7 @@ void App::RunMainLoop() {
   DeveloperGui developer_gui(this, window_ptr_.get());
 
   should_keep_looping_ = true;
+  int force_update_frames = 3;
   while (should_keep_looping_) {
 
     const auto kProcessEvent = [this](SDL_Event &event) {
@@ -93,11 +94,33 @@ void App::RunMainLoop() {
       }
     };
 
-    // Process all queued events
+    // Process events, possibly waiting if event queue is empty
     {
       SDL_Event event{};
-      while (SDL_PollEvent(&event) == 1) {
-        kProcessEvent(event);
+      if (force_update_frames == 0) {
+        if (!video_capture_.Capturing()) {
+          if (SDL_WaitEvent(&event) == 1) {
+            kProcessEvent(event);
+          }
+        } else {
+          constexpr int kTimeoutMs = 1000/144;
+          int result = 0;
+          while (!video_capture_.NewFrameAvailable() && result == 0) {
+            result = SDL_WaitEventTimeout(&event, kTimeoutMs);
+          };
+          if (result == 1)
+            kProcessEvent(event);
+        }
+        force_update_frames = 1;
+      } else {
+        --force_update_frames;
+      }
+
+      // Process all remaining queued events
+      {
+        while (SDL_PollEvent(&event) == 1) {
+          kProcessEvent(event);
+        }
       }
     }
 

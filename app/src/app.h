@@ -1,6 +1,7 @@
 #pragma once
 
 #include "app_window.h"
+#include "video_capture.h"
 #include "SDL.h"
 #include <string>
 #include <memory>
@@ -25,9 +26,7 @@ class App {
 
   void RunMainLoop();
 
-  AppWindow *AppWindow() {
-    return window_ptr_.get();
-  }
+  VideoCapture& GetVideoCapture() { return video_capture_; };
 
  private:
   void OnEvent(const SDL_WindowEvent &event);
@@ -36,6 +35,8 @@ class App {
   bool minimized_{false};
   AppWindowUniquePtr window_ptr_{nullptr};
   std::string user_config_path_;
+  VideoCapture video_capture_;
+
 };
 
 }

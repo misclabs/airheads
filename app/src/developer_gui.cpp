@@ -11,7 +11,7 @@
 namespace Airheads {
 
 template<typename ContentCallback>
-void ImGuiWindow(const char *name, ContentCallback content, bool *open = nullptr, ImGuiWindowFlags flag = 0) {
+void ImGuiWindow(const char *name, ContentCallback content, bool *open = nullptr, [[maybe_unused]] ImGuiWindowFlags flag = 0) {
   if (open != nullptr && !*open)
     return;
 
@@ -22,7 +22,7 @@ void ImGuiWindow(const char *name, ContentCallback content, bool *open = nullptr
 }
 
 DeveloperGui::DeveloperGui(App *app, AppWindow *app_window)
-    : appraiser_window_(app_window),
+    : appraiser_window_(app_window, app->GetVideoCapture()),
       saturation_map_renderer_(app_window->NativeRenderer(), &processor_pipeline_.Context().saturation_map_),
       value_map_renderer_(app_window->NativeRenderer(), &processor_pipeline_.Context().value_map_),
       cluster_map_renderer_(app_window->NativeRenderer(), &processor_pipeline_.Context().cluster_map_) {
@@ -85,7 +85,9 @@ void DeveloperGui::Update() {
 
 void DeveloperGui::UpdateConfigContent() {
   ImGuiWindow("Pipeline Config", [this]() -> void {
-    ImGui::Checkbox("Mirror Camera", &appraiser_window_.is_camera_mirrored_);
+    bool mirror_camera = app_->GetVideoCapture().IsCameraMirrored();
+    ImGui::Checkbox("Mirror Camera", &mirror_camera);
+    app_->GetVideoCapture().IsCameraMirrored(mirror_camera);
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
       ImGui::SetTooltip("Display the camera feed as a mirror image?");
 
@@ -106,16 +108,17 @@ void DeveloperGui::UpdateConfigContent() {
 void DeveloperGui::UpdateStatsContent() {
   ImGui::Text("FPS: %f", ImGui::GetIO().Framerate);
 
-  if (appraiser_window_.IsCameraActive()) {
+  VideoCapture &video_capture = app_->GetVideoCapture();
+  if (video_capture.Capturing()) {
     ImGui::Separator();
-    ImGui::Text("Camera Input");
-    Vec2i camera_size = appraiser_window_.ActiveCameraFrameSize();
-    ImGui::Text("Width:%d Height:%d", camera_size.x, camera_size.y);
-    ImGui::Text("Buffer size (bytes):%zu", appraiser_window_.ActiveCameraFrameBufferSizeBytes());
+    ImGui::Text("Video Input");
+    Vec2i frame_size = video_capture.FrameSize(video_capture.CapturingDeviceId());
+    ImGui::Text("Frame size:%dx%d", frame_size.x, frame_size.y);
+    ImGui::Text("Buffer size (bytes):%zu", video_capture.FrameBufferSizeBytes(video_capture.CapturingDeviceId()));
 
     processor_pipeline_.UpdateStatsGui();
   } else {
-    ImGui::Text("No camera active");
+    ImGui::Text("No device active");
   }
 }
 

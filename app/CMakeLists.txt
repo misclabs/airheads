@@ -30,6 +30,7 @@ target_sources(${NAME} PRIVATE
         src/video_proc/cluster_proc.cpp src/video_proc/cluster_proc.h
         src/video_proc/cluster.cpp src/video_proc/cluster.h
         src/video_proc/cluster_map_proc.cpp src/video_proc/cluster_map_proc.h
+        src/video_capture.cpp src/video_capture.h
         src/texture.cpp src/texture.h
         src/vec.h
         src/pixels.h

@@ -25,15 +25,10 @@ static void DrawRuler(ImDrawList *draw, ImVec2 left_side, float window_pixels_pe
 }
 
 void AppraiserWindow::Update(VideoProcessorPipeline &pipeline) {
-  if (should_update_available_cameras_) {
-    should_update_available_cameras_ = false;
-    camera_names_ = videoInput::getDeviceList();
-  }
-
   ImGui::Begin("Appraiser View", nullptr);
   UpdateToolbar(pipeline);
 
-  if (IsCameraActive()) {
+  if (video_capture_.Capturing()) {
     if (ImGui::BeginTabBar("##ModeSelect", ImGuiTabBarFlags_None)) {
       if (ImGui::BeginTabItem("Calibration")) {
         UpdateCalibrationView(pipeline);
@@ -47,20 +42,21 @@ void AppraiserWindow::Update(VideoProcessorPipeline &pipeline) {
     }
   }
   ImGui::End();
-
 }
 
 void AppraiserWindow::UpdateToolbar(VideoProcessorPipeline &pipeline) {
+  const auto &device_names = video_capture_.DeviceNames();
+
   // Camera Selection Combobox
   {
-    const char *combo_preview = selected_camera_ >= 0 && selected_camera_ < camera_names_.size() ?
-                                camera_names_[selected_camera_].c_str() :
-                                "No camera detected";
+    const char *combo_preview = selected_device_ >= 0 && selected_device_ < device_names.size() ?
+                                device_names[selected_device_].c_str() :
+                                "No capture device detected";
     if (ImGui::BeginCombo("###Camera", combo_preview, 0)) {
-      for (int i = 0; i < camera_names_.size(); ++i) {
-        const bool is_selected = (selected_camera_ == i);
-        if (ImGui::Selectable(camera_names_[i].c_str(), is_selected))
-          selected_camera_ = i;
+      for (int i = 0; i < device_names.size(); ++i) {
+        const bool is_selected = (selected_device_ == i);
+        if (ImGui::Selectable(device_names[i].c_str(), is_selected))
+          selected_device_ = i;
 
         // Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
         if (is_selected)
@@ -71,14 +67,14 @@ void AppraiserWindow::UpdateToolbar(VideoProcessorPipeline &pipeline) {
   }
   ImGui::SameLine();
   constexpr const char *kStartVideoCaptureText = "Start Video Capture";
-  if (selected_camera_ >= 0 && selected_camera_ < camera_names_.size()) {
-    if (selected_camera_ == active_camera_) {
+  if (selected_device_ >= 0 && selected_device_ < device_names.size()) {
+    if (selected_device_ == video_capture_.CapturingDeviceId()) {
       if (ImGui::Button("Stop Video Capture")) {
-        SetActiveCamera(-1, pipeline);
+        SetActiveCamera(VideoCapture::kNoDevice, pipeline);
       }
     } else {
       if (ImGui::Button(kStartVideoCaptureText)) {
-        SetActiveCamera(selected_camera_, pipeline);
+        SetActiveCamera(selected_device_, pipeline);
       }
     }
   } else {
@@ -164,8 +160,8 @@ void AppraiserWindow::DrawOverlayTargets(ImDrawList *draw,
 
 CameraViewMetrics AppraiserWindow::UpdateCameraView() {
   const ImVec2 cursor = ImGui::GetCursorScreenPos();
-  const ImVec2
-      camera_size{(float) video_input_.getWidth(active_camera_), (float) video_input_.getHeight(active_camera_)};
+  const Vec2i frame_size = video_capture_.FrameSize(video_capture_.CapturingDeviceId());
+  const ImVec2 camera_size{(float) frame_size.x, (float) frame_size.y};
   const ImVec2 avail_size = ImGui::GetContentRegionAvail();
 
   float scale;
@@ -185,93 +181,65 @@ CameraViewMetrics AppraiserWindow::UpdateCameraView() {
   return CameraViewMetrics{cursor, render_size, scale};
 }
 
-void AppraiserWindow::SetActiveCamera(int index, VideoProcessorPipeline &pipeline) {
-  if (index == active_camera_)
-    return;
+void AppraiserWindow::SetActiveCamera(VideoCapture::DeviceId device_id, VideoProcessorPipeline &pipeline) {
+  if (video_capture_.Capturing()) {
+    if (device_id == video_capture_.CapturingDeviceId())
+      return;
 
-  if (active_camera_ >= 0) {
-    APP_INFO("Stopping capture on device {}", video_input_.getDeviceName(active_camera_));
+    APP_INFO("Stopping capture on device {}", video_capture_.Name(video_capture_.CapturingDeviceId()));
     pipeline.StopCapture();
-    video_input_.stopDevice(active_camera_);
+    video_capture_.EndCapture();
     SDL_DestroyTexture(camera_render_tex_);
     camera_render_tex_ = nullptr;
   }
 
-  active_camera_ = index;
-  if (active_camera_ == -1)
+  if (!video_capture_.IsDevice(device_id))
     return;
 
-  APP_INFO("Starting capture on device {}", video_input_.getDeviceName(active_camera_));
-  if (!video_input_.setupDevice(active_camera_)) {
-    APP_ERROR("Failed to setup device {}", video_input_.getDeviceName(active_camera_));
-    active_camera_ = -1;
+  const CaptureError capture_result = video_capture_.BeginCapture(device_id);
+  if (capture_result != CaptureError::kNone) {
+    APP_ERROR("Could not begin capture for {}: {}", video_capture_.Name(device_id), CaptureErrorMsg(capture_result));
     return;
   }
-  video_input_.setAutoReconnectOnFreeze(active_camera_, true, 60);
 
+  const auto frame_size = video_capture_.FrameSize(device_id);
   camera_render_tex_ = SDL_CreateTexture(app_window_->NativeRenderer(),
                                          SDL_PIXELFORMAT_BGR24, SDL_TEXTUREACCESS_STREAMING,
-                                         video_input_.getWidth(active_camera_), video_input_.getHeight(active_camera_)
-  );
+                                         frame_size.x, frame_size.y);
   if (!camera_render_tex_) {
     APP_ERROR("Error creating camera texture: {}", SDL_GetError());
   }
 
-  auto pixels = GetNextFramePixels();
+  video_capture_.PullFrame();
   pipeline.StartCapture(
-      video_input_.getWidth(active_camera_),
-      video_input_.getHeight(active_camera_),
-      pixels);
+      frame_size.x, frame_size.y,
+      video_capture_.FrameBuffer());
 
-  CaptureAndProcessCameraFrame(pipeline, pixels);
+  CaptureAndProcessCameraFrame(pipeline, false);
 }
 
-void AppraiserWindow::CaptureAndProcessCameraFrame(VideoProcessorPipeline &pipeline, unsigned char *pixels) {
-  const SDL_Rect rect{0, 0, video_input_.getWidth(active_camera_), video_input_.getHeight(active_camera_)};
-  const int pitch = rect.w * 3;
-  if (pixels == nullptr) {
-    if (!video_input_.isDeviceSetup(active_camera_)) {
-      APP_ERROR("CaptureAndProcessCameraFrame device {}({}) is not setup!",
-                video_input_.getDeviceName(active_camera_), active_camera_);
-      return;
-    }
-
-    if (!video_input_.isFrameNew(active_camera_))
+void AppraiserWindow::CaptureAndProcessCameraFrame(VideoProcessorPipeline &pipeline, bool pull_frame) {
+  const Vec2i frame_size = video_capture_.FrameSize(video_capture_.CapturingDeviceId());
+  const SDL_Rect rect{0, 0, frame_size.x, frame_size.y};
+  const int pitch = frame_size.x * 3;
+  if (pull_frame) {
+    if (!video_capture_.NewFrameAvailable())
       return;
 
-    pixels = GetNextFramePixels();
+    video_capture_.PullFrame();
   }
 
   pipeline.ProcessFrame();
 
   int result = SDL_UpdateTexture(camera_render_tex_,
-                                 &rect, pixels, pitch);
+                                 &rect, video_capture_.FrameBuffer(), pitch);
   if (result) {
     APP_ERROR("Error updating camera {}({}) {}x{} texture: {}",
-              video_input_.getDeviceName(active_camera_), active_camera_,
+              video_capture_.Name(video_capture_.CapturingDeviceId()),
+              video_capture_.CapturingDeviceId(),
               rect.w, rect.h,
               SDL_GetError());
   }
-}
-
-unsigned char *AppraiserWindow::GetNextFramePixels() {
-  unsigned char *pixels = video_input_.getPixels(active_camera_, false, true);
-  if (is_camera_mirrored_) {
-    const int frame_width = video_input_.getWidth(active_camera_);
-    const int frame_height = video_input_.getHeight(active_camera_);
-    for (int y = 0; y < frame_height; ++y) {
-      for (int x = 0; x < frame_width - x - 1; ++x) {
-        int row_index = y * frame_width * 3;
-        int left_index = x * 3;
-        int right_index = (frame_width - x - 1) * 3;
-        std::swap<unsigned char>(pixels[row_index + left_index], pixels[row_index + right_index]);
-        std::swap<unsigned char>(pixels[row_index + left_index + 1], pixels[row_index + right_index + 1]);
-        std::swap<unsigned char>(pixels[row_index + left_index + 2], pixels[row_index + right_index + 2]);
-      }
-    }
-  }
-
-  return pixels;
 }
 
 }
