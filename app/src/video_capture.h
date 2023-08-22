@@ -1,7 +1,7 @@
 #pragma once
 
 #include "vec.h"
-#include "videoInput.h"
+#include "video_input/videoInput.h"
 #include <vector>
 #include <cstddef>
 

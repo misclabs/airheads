@@ -25,6 +25,7 @@ target_sources(${NAME} PRIVATE
         src/developer_gui.cpp src/developer_gui.h
         src/appraiser_window.cpp src/appraiser_window.h
         src/gui_mat_renderer.cpp src/gui_mat_renderer.h
+        src/video_input/videoInput.cpp src/video_input/videoInput.h
         src/video_proc/video_proc.cpp src/video_proc/video_proc.h
         src/video_proc/processing_context.cpp src/video_proc/processing_context.h
         src/video_proc/cluster_proc.cpp src/video_proc/cluster_proc.h
@@ -58,7 +59,6 @@ target_compile_features(${NAME} PRIVATE cxx_std_20)
 target_link_libraries(${NAME} PRIVATE
         project_warnings
         git_version
-        video_input_lib
         fmt
         spdlog
         SDL2::SDL2

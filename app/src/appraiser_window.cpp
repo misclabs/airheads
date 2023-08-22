@@ -196,6 +196,7 @@ void AppraiserWindow::SetActiveCamera(VideoCapture::DeviceId device_id, VideoPro
   if (!video_capture_.IsDevice(device_id))
     return;
 
+  APP_INFO("Starting capture on device {}", video_capture_.Name(video_capture_.CapturingDeviceId()));
   const CaptureError capture_result = video_capture_.BeginCapture(device_id);
   if (capture_result != CaptureError::kNone) {
     APP_ERROR("Could not begin capture for {}: {}", video_capture_.Name(device_id), CaptureErrorMsg(capture_result));
