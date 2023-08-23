@@ -2,12 +2,6 @@
 
 namespace Airheads {
 
-int DistanceBetween(cv::Point a, cv::Point b) {
-	auto dx = b.x - a.x;
-	auto dy = b.y - a.y;
-	return (int) sqrt(dx * dx + dy * dy);
-}
-
 void ProcessingContext::ResetOutput() {
 	top_target_.center = {Frame().cols / 2, (int) (Frame().rows * 0.3)};
 	top_target_.bounds = {top_target_.center, top_target_.center};
