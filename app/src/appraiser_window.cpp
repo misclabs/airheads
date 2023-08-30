@@ -25,7 +25,6 @@ static void DrawRuler(ImDrawList* draw, ImVec2 left_side, float window_pixels_pe
 }
 
 void AppraiserWindow::Update(VideoProcessorPipeline& pipeline) {
-	ImGui::Begin("Appraiser View", nullptr);
 	UpdateToolbar(pipeline);
 
 	if (video_capture_.Capturing()) {
@@ -41,7 +40,6 @@ void AppraiserWindow::Update(VideoProcessorPipeline& pipeline) {
 			ImGui::EndTabBar();
 		}
 	}
-	ImGui::End();
 }
 
 void AppraiserWindow::UpdateToolbar(VideoProcessorPipeline& pipeline) {
