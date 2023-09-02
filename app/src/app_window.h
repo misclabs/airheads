@@ -7,32 +7,32 @@
 
 namespace Airheads {
 
-	class AppWindow;
-	using AppWindowUniquePtr = std::unique_ptr<AppWindow>;
+class AppWindow;
+using AppWindowUniquePtr = std::unique_ptr<AppWindow>;
 
-	class AppWindow {
-	public:
+class AppWindow {
+public:
 
-		struct Settings {
-			std::string title;
-			const int width{ 1280 };
-			const int height{ 720 };
-		};
-
-		explicit AppWindow(const Settings& settings);
-		~AppWindow();
-
-		AppWindow(const AppWindow&) = delete;
-		AppWindow(AppWindow&&) = delete;
-		AppWindow& operator=(AppWindow other) = delete;
-		AppWindow& operator=(AppWindow&& other) = delete;
-
-		[[nodiscard]] SDL_Window* NativeWindow() const;
-		[[nodiscard]] SDL_Renderer* NativeRenderer() const;
-
-	private:
-		SDL_Window* sdl_window_{nullptr };
-		SDL_Renderer* sdl_renderer_{nullptr };
+	struct Settings {
+		std::string title;
+		const int width{1280};
+		const int height{720};
 	};
+
+	explicit AppWindow(const Settings& settings);
+	~AppWindow();
+
+	AppWindow(const AppWindow&) = delete;
+	AppWindow(AppWindow&&) = delete;
+	AppWindow& operator=(AppWindow other) = delete;
+	AppWindow& operator=(AppWindow&& other) = delete;
+
+	[[nodiscard]] SDL_Window* NativeWindow() const;
+	[[nodiscard]] SDL_Renderer* NativeRenderer() const;
+
+private:
+	SDL_Window* sdl_window_{nullptr};
+	SDL_Renderer* sdl_renderer_{nullptr};
+};
 
 }

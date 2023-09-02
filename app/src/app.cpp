@@ -29,7 +29,8 @@ AppUniquePtr App::CreateApplication() {
 		APP_ERROR("Error: {}", SDL_GetError());
 		return nullptr;
 	}
-	AppWindowUniquePtr window_ptr = std::make_unique<Airheads::AppWindow>(Airheads::AppWindow::Settings{app_title});
+	AppWindowUniquePtr
+		window_ptr = std::make_unique<Airheads::AppWindow>(Airheads::AppWindow::Settings{app_title});
 
 	const char* user_config_path = SDL_GetPrefPath(Conf::COMPANY_NAMESPACE.c_str(), Conf::APP_NAME.c_str());
 	APP_INFO("User config path: {}", user_config_path);
@@ -84,15 +85,27 @@ void App::RunMainLoop() {
 		const auto kProcessEvent = [this, &developer_gui](SDL_Event& event) {
 			ImGui_ImplSDL2_ProcessEvent(&event);
 
-			if (event.type == SDL_QUIT) {
+			switch (event.type) {
+			case SDL_QUIT:
 				StopMainLoop();
-			} else if (event.type == SDL_WINDOWEVENT &&
-				event.window.windowID == SDL_GetWindowID(window_ptr_->NativeWindow())) {
-				OnEvent(event.window);
-			} else if (event.type == SDL_KEYDOWN) {
+				break;
+			case SDL_WINDOWEVENT:
+				if (event.window.windowID == SDL_GetWindowID(window_ptr_->NativeWindow())) {
+					OnEvent(event.window);
+				}
+				break;
+			case SDL_KEYDOWN:
 				developer_gui.OnKeyDown(event.key);
-			} else if (event.type == SDL_KEYUP) {
+				break;
+			case SDL_KEYUP:
 				developer_gui.OnKeyUp(event.key);
+				break;
+			case SDL_MOUSEBUTTONDOWN:
+				developer_gui.OnMouseButtonDown(event.button);
+				break;
+			case SDL_MOUSEBUTTONUP:
+				developer_gui.OnMouseButtonUp(event.button);
+				break;
 			}
 		};
 
@@ -153,14 +166,17 @@ App::App(AppWindowUniquePtr window_ptr, const char* user_config_path) :
 
 void App::OnEvent(const SDL_WindowEvent& event) {
 	switch (event.event) {
-		case SDL_WINDOWEVENT_CLOSE: StopMainLoop();
-			return;
+	case SDL_WINDOWEVENT_CLOSE:
+		StopMainLoop();
+		return;
 
-		case SDL_WINDOWEVENT_MINIMIZED: minimized_ = true;
-			return;
+	case SDL_WINDOWEVENT_MINIMIZED:
+		minimized_ = true;
+		return;
 
-		case SDL_WINDOWEVENT_SHOWN: minimized_ = false;
-			return;
+	case SDL_WINDOWEVENT_SHOWN:
+		minimized_ = false;
+		return;
 	}
 }
 

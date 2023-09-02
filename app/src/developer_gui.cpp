@@ -12,9 +12,9 @@ namespace Airheads {
 
 template<typename ContentCallback>
 void ImGuiWindow(const char* name,
-                 ContentCallback content,
-                 bool* open = nullptr,
-                 [[maybe_unused]] ImGuiWindowFlags flag = 0) {
+	ContentCallback content,
+	bool* open = nullptr,
+	[[maybe_unused]] ImGuiWindowFlags flag = 0) {
 	if (open != nullptr && !*open)
 		return;
 
@@ -25,10 +25,10 @@ void ImGuiWindow(const char* name,
 }
 
 DeveloperGui::DeveloperGui(App* app, AppWindow* app_window)
-	: appraiser_window_(app_window, app->GetVideoCapture()),
-	  saturation_map_renderer_(app_window->NativeRenderer(), &processor_pipeline_.Context().saturation_map_),
-	  value_map_renderer_(app_window->NativeRenderer(), &processor_pipeline_.Context().value_map_),
-	  cluster_map_renderer_(app_window->NativeRenderer(), &processor_pipeline_.Context().cluster_map_) {
+	: appraiser_window_(app_window, app->GetVideoCapture(), processor_pipeline_),
+	saturation_map_renderer_(app_window->NativeRenderer(), &processor_pipeline_.Context().saturation_map_),
+	value_map_renderer_(app_window->NativeRenderer(), &processor_pipeline_.Context().value_map_),
+	cluster_map_renderer_(app_window->NativeRenderer(), &processor_pipeline_.Context().cluster_map_) {
 	assert(app);
 	assert(app_window);
 
@@ -38,13 +38,21 @@ DeveloperGui::DeveloperGui(App* app, AppWindow* app_window)
 	LoadProcessors(processor_pipeline_);
 }
 
-void DeveloperGui::OnKeyDown(SDL_KeyboardEvent event) {
+void DeveloperGui::OnKeyDown(const SDL_KeyboardEvent& event) {
 	if (event.keysym.scancode == SDL_SCANCODE_F8 && event.repeat == 0) {
 		is_dev_ui_enabled_ = !is_dev_ui_enabled_;
 	}
 }
-void DeveloperGui::OnKeyUp(SDL_KeyboardEvent event) {
+void DeveloperGui::OnKeyUp(const SDL_KeyboardEvent& event) {
 
+}
+
+void DeveloperGui::OnMouseButtonDown(const SDL_MouseButtonEvent& event) {
+	appraiser_window_.OnMouseButtonDown(event);
+}
+
+void DeveloperGui::OnMouseButtonUp(const SDL_MouseButtonEvent& event) {
+	appraiser_window_.OnMouseButtonUp(event);
 }
 
 void DeveloperGui::Update() {
@@ -58,7 +66,7 @@ void DeveloperGui::Update() {
 		ImGui::SetWindowSize({(float) w, (float) h});
 		ImGui::SetWindowPos({0, 0});
 
-		appraiser_window_.Update(processor_pipeline_);
+		appraiser_window_.Update();
 
 		ImGui::End();
 	} else {
@@ -74,7 +82,7 @@ void DeveloperGui::Update() {
 			if (ImGui::BeginMenu("View")) {
 				ImGui::MenuItem("Pipeline Config", nullptr, &is_pipeline_config_visible_);
 				ImGui::MenuItem("Stats", nullptr, &is_stats_visible_);
-				ImGui::MenuItem("Ruler", nullptr, &appraiser_window_.is_ruler_visible_);
+				//ImGui::MenuItem("Ruler", nullptr, &appraiser_window_.is_ruler_visible_);
 				ImGui::Separator();
 				ImGui::MenuItem("Saturation Map", nullptr, &is_saturation_map_visible_);
 				ImGui::MenuItem("Value Map", nullptr, &is_value_map_visible_);
@@ -85,15 +93,19 @@ void DeveloperGui::Update() {
 			ImGui::EndMainMenuBar();
 		}
 
-		ImGuiWindow("Pipeline Config", [this]() -> void { UpdateConfigContent(); }, &is_pipeline_config_visible_);
+		//ImGui::ShowDemoWindow();
+
+		ImGuiWindow("Pipeline Config",
+			[this]() -> void { UpdateConfigContent(); },
+			&is_pipeline_config_visible_);
 
 		ImGui::SetNextWindowDockID(dockspace_id);
 		ImGui::Begin("Appraiser View", nullptr);
-		appraiser_window_.Update(processor_pipeline_);
+		appraiser_window_.Update();
 		ImGui::End();
 
 		ImGuiWindow("Stats",
-		            [this]() -> void { UpdateStatsContent(); }, &is_stats_visible_);
+			[this]() -> void { UpdateStatsContent(); }, &is_stats_visible_);
 
 		ImGuiWindow("Saturation Map", [this]() -> void {
 			ImGui::Text("Saturation Map (threshold applied)");
@@ -121,9 +133,9 @@ void DeveloperGui::UpdateConfigContent() {
 		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
 			ImGui::SetTooltip("Display the camera feed as a mirror image?");
 
-		ImGui::Checkbox("Show Ruler", &appraiser_window_.is_ruler_visible_);
-		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
-			ImGui::SetTooltip("Display the ruler overlay on the camera feed?");
+//		ImGui::Checkbox("Show Ruler", &appraiser_window_.is_ruler_visible_);
+//		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
+//			ImGui::SetTooltip("Display the ruler overlay on the camera feed?");
 
 		ImGui::SliderFloat("pixels/cm", &processor_pipeline_.Context().frame_pixels_per_cm_, 3, 100);
 		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
@@ -144,7 +156,8 @@ void DeveloperGui::UpdateStatsContent() {
 		ImGui::Text("Video Input");
 		Vec2i frame_size = video_capture.FrameSize(video_capture.CapturingDeviceId());
 		ImGui::Text("Frame size:%dx%d", frame_size.x, frame_size.y);
-		ImGui::Text("Buffer size (bytes):%zu", video_capture.FrameBufferSizeBytes(video_capture.CapturingDeviceId()));
+		ImGui::Text("Buffer size (bytes):%zu",
+			video_capture.FrameBufferSizeBytes(video_capture.CapturingDeviceId()));
 
 		processor_pipeline_.UpdateStatsGui();
 	} else {

@@ -9,13 +9,31 @@ static inline float OverlayLineWidthPx(const ProcessingContext& context) {
 	return context.CmToPx(line_width);
 }
 
-static ImVec2 CameraFrameToWindowLoc(CameraViewMetrics view_metrics, Vec2i frame_loc) {
+ImVec2 CameraViewMetrics::CameraFrameToWindowLoc(Vec2i frame_loc) const {
 	return {
-		view_metrics.window_pos.x + (float) frame_loc.x * view_metrics.frame_to_window_scale,
-		view_metrics.window_pos.y + (float) frame_loc.y * view_metrics.frame_to_window_scale};
+		window_pos.x + (float) frame_loc.x * frame_to_window_scale,
+		window_pos.y + (float) frame_loc.y * frame_to_window_scale};
 }
 
-static void DrawRuler(ImDrawList* draw, ImVec2 left_side, float window_pixels_per_cm, ImU32 color, float line_width) {
+Vec2i CameraViewMetrics::WindowLocToCameraFrame(Vec2i window_loc) const {
+	return {
+		(int) (((float) window_loc.x - window_pos.x) / frame_to_window_scale),
+		(int) (((float) window_loc.y - window_pos.y) / frame_to_window_scale)
+	};
+}
+
+bool CameraViewMetrics::IsWindowLocInside(Vec2i window_loc) const {
+	return window_loc.x >= window_pos.x
+		&& window_loc.x <= window_pos.x + render_size.x
+		&& window_loc.y >= window_pos.y
+		&& window_loc.y <= window_pos.y + render_size.y;
+}
+
+static void DrawRuler(ImDrawList* draw,
+	ImVec2 left_side,
+	float window_pixels_per_cm,
+	ImU32 color,
+	float line_width) {
 	ImVec2 right_side = {left_side.x + window_pixels_per_cm, left_side.y};
 
 	draw->AddLine({left_side.x, left_side.y + 6}, {left_side.x, left_side.y - 6}, color, line_width);
@@ -24,21 +42,116 @@ static void DrawRuler(ImDrawList* draw, ImVec2 left_side, float window_pixels_pe
 	draw->AddText({right_side.x + 3, right_side.y}, color, "1cm");
 }
 
-void AppraiserWindow::Update(VideoProcessorPipeline& pipeline) {
-	UpdateToolbar(pipeline);
+void AppraiserWindow::Update() {
+
+	UpdateToolbar(pipeline_);
 
 	if (video_capture_.Capturing()) {
-		if (ImGui::BeginTabBar("##ModeSelect", ImGuiTabBarFlags_None)) {
-			if (ImGui::BeginTabItem("Calibration")) {
-				UpdateCalibrationView(pipeline);
-				ImGui::EndTabItem();
+		ImGui::BeginChild("Tool Options", ImVec2(250, 0), true);
+		{
+			if (mode_ == AppraiserMode::SelectTopTarget) {
+				ImGui::Text("Select Top Target");
+			} else if (mode_ == AppraiserMode::SelectBottomTarget) {
+				ImGui::Text("Select Bottom Target");
+				if (ImGui::Button("Back to selecting top target")) {
+					mode_ = AppraiserMode::SelectTopTarget;
+				}
+			} else if (mode_ == AppraiserMode::Testing) {
+				if (ImGui::Button("Back to selecting top target")) {
+					mode_ = AppraiserMode::SelectTopTarget;
+				}
+				if (ImGui::Button("Back to selecting bottom target")) {
+					mode_ = AppraiserMode::SelectBottomTarget;
+				}
+
 			}
-			if (ImGui::BeginTabItem("Test")) {
-				UpdateTestingView(pipeline);
-				ImGui::EndTabItem();
-			}
-			ImGui::EndTabBar();
 		}
+		ImGui::EndChild();
+
+		ImGui::SameLine();
+		ImGui::BeginGroup();
+		{
+			// TODO(jw): probably a better place to do this
+			if (mode_ == AppraiserMode::Testing) {
+				pipeline_.Context().SetMode(ProcessingMode::kMeasuring);
+			} else {
+				pipeline_.Context().SetMode(ProcessingMode::kSetup);
+			}
+			CaptureAndProcessCameraFrame(pipeline_);
+
+			camera_view_metrics_ = UpdateCameraView();
+			if (camera_view_metrics_.is_hovered
+				&& (mode_ == AppraiserMode::SelectTopTarget || mode_ == AppraiserMode::SelectBottomTarget)) {
+				ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+			}
+
+			if (mode_ == AppraiserMode::SelectBottomTarget) {
+				ImDrawList* draw = ImGui::GetWindowDrawList();
+				const auto& context = pipeline_.Context();
+				const float target_radius_px = context.CmToPx(context.target_diameter_cm_ / 2.0f);
+
+				auto draw_cluster_indicator = [&](const ClusterResult& cluster) {
+					ImVec2 center = {
+						camera_view_metrics_.window_pos.x
+							+ (float) cluster.center.x * camera_view_metrics_.frame_to_window_scale,
+						camera_view_metrics_.window_pos.y
+							+ (float) cluster.center.y * camera_view_metrics_.frame_to_window_scale};
+					float
+						radius =
+						target_radius_px + target_radius_px * 2 * (float) cluster.size
+							/ (float) context.max_cluster_size_px_;
+					draw->AddCircle(center, radius, kClusterColor);
+				};
+				if (context.IsClusterValid(context.TopCluster())) {
+					draw_cluster_indicator(context.TopCluster());
+				}
+
+				const auto is_top_cluster_valid = context.IsClusterValid(context.TopCluster());
+				DrawTargetOverlay(draw,
+					context,
+					is_top_cluster_valid,
+					context.TopTarget(),
+					context.TopCluster(),
+					camera_view_metrics_);
+
+			}
+			if (mode_ == AppraiserMode::Testing) {
+				ImDrawList* draw = ImGui::GetWindowDrawList();
+				const auto& context = pipeline_.Context();
+				const float line_width = OverlayLineWidthPx(pipeline_.Context());
+				const float target_radius_px = context.CmToPx(context.target_diameter_cm_ / 2.0f);
+
+				auto draw_cluster_indicator = [&](const ClusterResult& cluster) {
+					ImVec2 center = {
+						camera_view_metrics_.window_pos.x
+							+ (float) cluster.center.x * camera_view_metrics_.frame_to_window_scale,
+						camera_view_metrics_.window_pos.y
+							+ (float) cluster.center.y * camera_view_metrics_.frame_to_window_scale};
+					float
+						radius =
+						target_radius_px + target_radius_px * 2 * (float) cluster.size
+							/ (float) context.max_cluster_size_px_;
+					draw->AddCircle(center, radius, kClusterColor);
+				};
+				if (context.IsClusterValid(context.TopCluster())) {
+					draw_cluster_indicator(context.TopCluster());
+				}
+				if (context.IsClusterValid(context.BotCluster())) {
+					draw_cluster_indicator(context.BotCluster());
+				}
+
+				DrawOverlayTargets(draw, context, camera_view_metrics_);
+
+				const auto is_top_cluster_valid = context.IsClusterValid(context.TopCluster());
+				const auto is_bot_cluster_valid = context.IsClusterValid(context.BotCluster());
+				if (is_top_cluster_valid && is_bot_cluster_valid) {
+					ImVec2 top_target = camera_view_metrics_.CameraFrameToWindowLoc(context.TopTargetLoc());
+					ImVec2 bot_target = camera_view_metrics_.CameraFrameToWindowLoc(context.BotTargetLoc());
+					draw->AddLine(top_target, bot_target, kTargetValidColor, line_width);
+				}
+			}
+		}
+		ImGui::EndGroup();
 	}
 }
 
@@ -48,8 +161,8 @@ void AppraiserWindow::UpdateToolbar(VideoProcessorPipeline& pipeline) {
 	// Camera Selection Combobox
 	{
 		const char* combo_preview = selected_device_ >= 0 && selected_device_ < device_names.size() ?
-		                            device_names[selected_device_].c_str() :
-		                            "No capture device detected";
+			device_names[selected_device_].c_str() :
+			"No capture device detected";
 		if (ImGui::BeginCombo("###Camera", combo_preview, 0)) {
 			for (int i = 0; i < device_names.size(); ++i) {
 				const bool is_selected = (selected_device_ == i);
@@ -82,94 +195,50 @@ void AppraiserWindow::UpdateToolbar(VideoProcessorPipeline& pipeline) {
 	}
 }
 
-void AppraiserWindow::UpdateCalibrationView(VideoProcessorPipeline& pipeline) {
-	pipeline.Context().SetMode(ProcessingMode::kCalibration);
-	pipeline.Context().ResetOutput();
-	CaptureAndProcessCameraFrame(pipeline);
+void AppraiserWindow::DrawTargetOverlay(ImDrawList* draw,
+	const ProcessingContext& context,
+	bool is_valid,
+	const ClusterResult& target,
+	const ClusterResult& cluster,
+	CameraViewMetrics view_metrics) {
 
-	const auto view_metrics = UpdateCameraView();
-
-	ImDrawList* draw = ImGui::GetWindowDrawList();
-	const auto& context = pipeline.Context();
-	const float line_width = OverlayLineWidthPx(pipeline.Context());
-
-	DrawOverlayTargets(draw, context, view_metrics);
-
-	if (is_ruler_visible_) {
-		ImU32 ruler_color = IM_COL32(255, 255, 0, 255 / 3 * 2);
-		ImVec2 center_pt = {
-			view_metrics.window_pos.x + view_metrics.render_size.x / 2,
-			view_metrics.window_pos.y + view_metrics.render_size.y / 2
-		};
-		float cm_in_window_pixels = context.frame_pixels_per_cm_ * view_metrics.frame_to_window_scale;
-		DrawRuler(draw, center_pt, cm_in_window_pixels, ruler_color, line_width);
-	}
-}
-
-void AppraiserWindow::UpdateTestingView(VideoProcessorPipeline& pipeline) {
-	pipeline.Context().SetMode(ProcessingMode::kTesting);
-	CaptureAndProcessCameraFrame(pipeline);
-
-	const auto view_metrics = UpdateCameraView();
-
-	ImDrawList* draw = ImGui::GetWindowDrawList();
-	const auto& context = pipeline.Context();
-	const float line_width = OverlayLineWidthPx(pipeline.Context());
+	const float kLineThickness = 2.0f;
 	const float target_radius_px = context.CmToPx(context.target_diameter_cm_ / 2.0f);
-
-	auto draw_cluster_indicator = [&](const ClusterResult& cluster) {
-		ImVec2 center = {
-			view_metrics.window_pos.x + (float) cluster.center.x * view_metrics.frame_to_window_scale,
-			view_metrics.window_pos.y + (float) cluster.center.y * view_metrics.frame_to_window_scale};
-		float
-			radius =
-			target_radius_px + target_radius_px * 2 * (float) cluster.size / (float) context.max_cluster_size_px_;
-		draw->AddCircle(center, radius, kClusterColor);
-	};
-	if (context.IsClusterValid(context.TopCluster())) {
-		draw_cluster_indicator(context.TopCluster());
-	}
-	if (context.IsClusterValid(context.BotCluster())) {
-		draw_cluster_indicator(context.BotCluster());
-	}
-
-	DrawOverlayTargets(draw, context, view_metrics);
-
-	const auto is_top_cluster_valid = context.IsClusterValid(context.TopCluster());
-	const auto is_bot_cluster_valid = context.IsClusterValid(context.BotCluster());
-	if (is_top_cluster_valid && is_bot_cluster_valid) {
-		ImVec2 top_target = CameraFrameToWindowLoc(view_metrics, context.TopTargetLoc());
-		ImVec2 bot_target = CameraFrameToWindowLoc(view_metrics, context.BotTargetLoc());
-		draw->AddLine(top_target, bot_target, kTargetValidColor, line_width);
+	ImVec2 target_window_loc = view_metrics.CameraFrameToWindowLoc(target.center);
+	draw->AddCircleFilled(target_window_loc,
+		target_radius_px,
+		is_valid ? kTargetValidColor : kTargetInvalidColor);
+	draw->AddRect(
+		view_metrics.CameraFrameToWindowLoc(target.bounds.min),
+		view_metrics.CameraFrameToWindowLoc(target.bounds.max),
+		kTargetValidColor, 0, 0, kLineThickness);
+	if (!is_valid) {
+		draw->AddRect(
+			view_metrics.CameraFrameToWindowLoc(cluster.bounds.min),
+			view_metrics.CameraFrameToWindowLoc(cluster.bounds.max),
+			kTargetInvalidColor, 0, 0, kLineThickness);
 	}
 }
 
 void AppraiserWindow::DrawOverlayTargets(ImDrawList* draw,
-                                         const ProcessingContext& context,
-                                         CameraViewMetrics view_metrics) {
-
-	const float kLineThickness = 2.0f;
-	const float target_radius_px = context.CmToPx(context.target_diameter_cm_ / 2.0f);
-	const auto kDrawTarget = [&](bool is_valid, const ClusterResult& target, const ClusterResult& cluster) {
-		ImVec2 target_window_loc = CameraFrameToWindowLoc(view_metrics, target.center);
-		draw->AddCircleFilled(target_window_loc, target_radius_px, is_valid ? kTargetValidColor : kTargetInvalidColor);
-		draw->AddRect(
-			CameraFrameToWindowLoc(view_metrics, target.bounds.min),
-			CameraFrameToWindowLoc(view_metrics, target.bounds.max),
-			kTargetValidColor, 0, 0, kLineThickness);
-		if (!is_valid) {
-			draw->AddRect(
-				CameraFrameToWindowLoc(view_metrics, cluster.bounds.min),
-				CameraFrameToWindowLoc(view_metrics, cluster.bounds.max),
-				kTargetInvalidColor, 0, 0, kLineThickness);
-		}
-	};
+	const ProcessingContext& context,
+	CameraViewMetrics view_metrics) {
 
 	const auto is_top_cluster_valid = context.IsClusterValid(context.TopCluster());
-	kDrawTarget(is_top_cluster_valid, context.TopTarget(), context.TopCluster());
+	DrawTargetOverlay(draw,
+		context,
+		is_top_cluster_valid,
+		context.TopTarget(),
+		context.TopCluster(),
+		view_metrics);
 
 	const auto is_bot_cluster_valid = context.IsClusterValid(context.BotCluster());
-	kDrawTarget(is_bot_cluster_valid, context.BotTarget(), context.BotCluster());
+	DrawTargetOverlay(draw,
+		context,
+		is_bot_cluster_valid,
+		context.BotTarget(),
+		context.BotCluster(),
+		view_metrics);
 }
 
 CameraViewMetrics AppraiserWindow::UpdateCameraView() {
@@ -192,7 +261,12 @@ CameraViewMetrics AppraiserWindow::UpdateCameraView() {
 
 	ImGui::Image(camera_render_tex_, render_size);
 
-	return CameraViewMetrics{cursor, render_size, scale};
+	return CameraViewMetrics{
+		cursor,
+		render_size,
+		scale,
+		ImGui::IsItemHovered()
+	};
 }
 
 void AppraiserWindow::SetActiveCamera(VideoCapture::DeviceId device_id, VideoProcessorPipeline& pipeline) {
@@ -214,18 +288,20 @@ void AppraiserWindow::SetActiveCamera(VideoCapture::DeviceId device_id, VideoPro
 	const CaptureError capture_result = video_capture_.BeginCapture(device_id);
 	if (capture_result != CaptureError::kNone) {
 		APP_ERROR("Could not begin capture for {}: {}",
-		          video_capture_.Name(device_id),
-		          CaptureErrorMsg(capture_result));
+			video_capture_.Name(device_id),
+			CaptureErrorMsg(capture_result));
 		return;
 	}
 
 	const auto frame_size = video_capture_.FrameSize(device_id);
 	camera_render_tex_ = SDL_CreateTexture(app_window_->NativeRenderer(),
-	                                       SDL_PIXELFORMAT_BGR24, SDL_TEXTUREACCESS_STREAMING,
-	                                       frame_size.x, frame_size.y);
+		SDL_PIXELFORMAT_BGR24, SDL_TEXTUREACCESS_STREAMING,
+		frame_size.x, frame_size.y);
 	if (!camera_render_tex_) {
 		APP_ERROR("Error creating camera texture: {}", SDL_GetError());
 	}
+
+	mode_ = AppraiserMode::SelectTopTarget;
 
 	video_capture_.PullFrame();
 	pipeline.StartCapture(
@@ -249,14 +325,43 @@ void AppraiserWindow::CaptureAndProcessCameraFrame(VideoProcessorPipeline& pipel
 	pipeline.ProcessFrame();
 
 	int result = SDL_UpdateTexture(camera_render_tex_,
-	                               &rect, video_capture_.FrameBuffer(), pitch);
+		&rect, video_capture_.FrameBuffer(), pitch);
 	if (result) {
 		APP_ERROR("Error updating camera {}({}) {}x{} texture: {}",
-		          video_capture_.Name(video_capture_.CapturingDeviceId()),
-		          video_capture_.CapturingDeviceId(),
-		          rect.w, rect.h,
-		          SDL_GetError());
+			video_capture_.Name(video_capture_.CapturingDeviceId()),
+			video_capture_.CapturingDeviceId(),
+			rect.w, rect.h,
+			SDL_GetError());
 	}
+}
+
+void AppraiserWindow::OnMouseButtonDown(const SDL_MouseButtonEvent& event) {
+	switch (mode_) {
+	case AppraiserMode::SelectTopTarget: {
+		const Vec2i event_loc = {event.x, event.y};
+		if (camera_view_metrics_.IsWindowLocInside(event_loc)) {
+			auto frame_loc = camera_view_metrics_.WindowLocToCameraFrame(event_loc);
+			pipeline_.Context().InitTopTarget(frame_loc);
+
+			mode_ = AppraiserMode::SelectBottomTarget;
+		}
+		break;
+	}
+	case AppraiserMode::SelectBottomTarget: {
+		const Vec2i event_loc = {event.x, event.y};
+		if (camera_view_metrics_.IsWindowLocInside(event_loc)) {
+			auto frame_loc = camera_view_metrics_.WindowLocToCameraFrame(event_loc);
+			pipeline_.Context().InitBottomTarget(frame_loc);
+
+			mode_ = AppraiserMode::Testing;
+		}
+		break;
+	}
+	}
+}
+
+void AppraiserWindow::OnMouseButtonUp(const SDL_MouseButtonEvent& event) {
+
 }
 
 }

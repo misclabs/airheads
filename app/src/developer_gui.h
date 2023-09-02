@@ -15,8 +15,10 @@ public:
 
 	DeveloperGui(App* app, AppWindow* app_window);
 
-	void OnKeyDown(SDL_KeyboardEvent event);
-	void OnKeyUp(SDL_KeyboardEvent event);
+	void OnKeyDown(const SDL_KeyboardEvent& event);
+	void OnKeyUp(const SDL_KeyboardEvent& event);
+	void OnMouseButtonDown(const SDL_MouseButtonEvent& event);
+	void OnMouseButtonUp(const SDL_MouseButtonEvent& event);
 
 	void Update();
 

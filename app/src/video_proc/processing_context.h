@@ -34,8 +34,8 @@ struct ClusterResult {
 };
 
 enum class ProcessingMode {
-	kCalibration,
-	kTesting
+	kSetup,
+	kMeasuring
 };
 
 class ProcessingContext {
@@ -45,6 +45,8 @@ public:
 
 	void ResetOutput();
 	void UpdateClusterResults(ClusterResult top, ClusterResult bot);
+	void InitTopTarget(Vec2i center);
+	void InitBottomTarget(Vec2i center);
 
 	[[nodiscard]] Vec2i TopTargetLoc() const { return top_target_.center; }
 	[[nodiscard]] Vec2i BotTargetLoc() const { return bot_target_.center; }

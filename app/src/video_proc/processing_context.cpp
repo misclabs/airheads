@@ -29,19 +29,29 @@ void ProcessingContext::ResetOutput() {
 	return outCluster;
 }
 
+void ProcessingContext::InitTopTarget(Vec2i center) {
+	top_target_.center = center;
+	top_target_.bounds = {top_target_.center, top_target_.center};;
+}
+
+void ProcessingContext::InitBottomTarget(Vec2i center) {
+	bot_target_.center = center;
+	bot_target_.bounds = {bot_target_.center, bot_target_.center};;
+}
+
 void ProcessingContext::UpdateClusterResults(ClusterResult top, ClusterResult bot) {
 	top_cluster_ = top;
 	bot_cluster_ = bot;
 
-	if (mode_ == ProcessingMode::kTesting && IsClusterValid(top)) {
+	if (IsClusterValid(top)) {
 		top_target_ = ClampLocToFrame(top);
 	}
-	if (mode_ == ProcessingMode::kTesting && IsClusterValid(bot)) {
+	if (IsClusterValid(bot)) {
 		bot_target_ = ClampLocToFrame(bot);
 	}
 
 	// Only update measurements when both clusters are valid
-	if (mode_ == ProcessingMode::kTesting && IsClusterValid(top) && IsClusterValid(bot)) {
+	if (mode_ == ProcessingMode::kMeasuring && IsClusterValid(top) && IsClusterValid(bot)) {
 		targets_dist_px_ = Distance(top_target_.center, bot_target_.center);
 
 		min_targets_dist_px_ = std::min(min_targets_dist_px_, targets_dist_px_);
