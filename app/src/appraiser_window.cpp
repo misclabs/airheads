@@ -4,7 +4,7 @@
 
 namespace Airheads {
 
-static inline float OverlayLineWidthPx(const ProcessingContext& context) {
+static inline float OverlayLineWidthPx(const ProcessingContext&) {
 //	float line_width = context.target_diameter_cm_ / 3.0f;
 //	return context.CmToPx(line_width);
 	return 2.0f;
@@ -105,7 +105,7 @@ void AppraiserWindow::Update() {
 
 				if (is_ruler_visible_) {
 					DrawRuler(draw,
-						{mouse_pos.x, mouse_pos.y},
+						{mouse_pos.x + context.CmToPx(context.target_diameter_cm_ / 2.0f) + 3.0f, mouse_pos.y},
 						context.CmToPx(1.0f),
 						kTargetValidColor,
 						2.0f);
