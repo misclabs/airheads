@@ -40,7 +40,7 @@ void DeveloperGui::OnKeyDown(const SDL_KeyboardEvent& event) {
 		is_dev_ui_enabled_ = !is_dev_ui_enabled_;
 	}
 }
-void DeveloperGui::OnKeyUp(const SDL_KeyboardEvent& event) {
+void DeveloperGui::OnKeyUp(const SDL_KeyboardEvent&) {
 
 }
 
@@ -79,7 +79,7 @@ void DeveloperGui::Update() {
 			if (ImGui::BeginMenu("View")) {
 				ImGui::MenuItem("Pipeline Config", nullptr, &is_pipeline_config_visible_);
 				ImGui::MenuItem("Stats", nullptr, &is_stats_visible_);
-				//ImGui::MenuItem("Ruler", nullptr, &appraiser_window_.is_ruler_visible_);
+				ImGui::MenuItem("Ruler", nullptr, &appraiser_window_.is_ruler_visible_);
 				ImGui::Separator();
 				ImGui::MenuItem("Saturation Map", nullptr, &is_saturation_map_visible_);
 				ImGui::MenuItem("Value Map", nullptr, &is_value_map_visible_);
@@ -137,6 +137,13 @@ void DeveloperGui::UpdateConfigContent() {
 		ImGui::SliderFloat("pixels/cm", &processor_pipeline_.Context().frame_pixels_per_cm_, 3, 100);
 		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
 			ImGui::SetTooltip("Approximate pixels per cm at the distances dots are from the camera.");
+
+		ImGui::SliderFloat("Target Size (cm)",
+			&processor_pipeline_.Context().target_diameter_cm_,
+			0.1f,
+			3.0f);
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
+			ImGui::SetTooltip("Size of the target in centimeters.");
 
 		ImGui::Separator();
 

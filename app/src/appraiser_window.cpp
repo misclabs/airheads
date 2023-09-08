@@ -5,8 +5,9 @@
 namespace Airheads {
 
 static inline float OverlayLineWidthPx(const ProcessingContext& context) {
-	float line_width = context.target_diameter_cm_ / 3.0f;
-	return context.CmToPx(line_width);
+//	float line_width = context.target_diameter_cm_ / 3.0f;
+//	return context.CmToPx(line_width);
+	return 2.0f;
 }
 
 ImVec2 CameraViewMetrics::CameraFrameToWindowLoc(Vec2i frame_loc) const {
@@ -23,10 +24,10 @@ Vec2i CameraViewMetrics::WindowLocToCameraFrame(Vec2i window_loc) const {
 }
 
 bool CameraViewMetrics::IsWindowLocInside(Vec2i window_loc) const {
-	return window_loc.x >= window_pos.x
-		&& window_loc.x <= window_pos.x + render_size.x
-		&& window_loc.y >= window_pos.y
-		&& window_loc.y <= window_pos.y + render_size.y;
+	return (float) window_loc.x >= window_pos.x
+		&& (float) window_loc.x <= window_pos.x + render_size.x
+		&& (float) window_loc.y >= window_pos.y
+		&& (float) window_loc.y <= window_pos.y + render_size.y;
 }
 
 static void DrawRuler(ImDrawList* draw,
@@ -57,10 +58,13 @@ void AppraiserWindow::Update() {
 					mode_ = AppraiserMode::SelectTopTarget;
 				}
 			} else if (mode_ == AppraiserMode::Testing) {
-				ImGui::Text("Intercluster Distance: %.1fmm", pipeline_.Context().PxToCm((float)pipeline_.Context().TargetsDistPx())*10.0f);
+				ImGui::Text("Intercluster Distance: %.1fmm",
+					pipeline_.Context().PxToCm((float) pipeline_.Context().TargetsDistPx()) * 10.0f);
 
-				ImGui::Text("Min distance: %.1fmm", pipeline_.Context().PxToCm((float)pipeline_.Context().MinTargetsDistPx())*10.0f);
-				ImGui::Text("Max distance: %.1fmm", pipeline_.Context().PxToCm((float)pipeline_.Context().MaxTargetsDistPx())*10.0f);
+				ImGui::Text("Min distance: %.1fmm",
+					pipeline_.Context().PxToCm((float) pipeline_.Context().MinTargetsDistPx()) * 10.0f);
+				ImGui::Text("Max distance: %.1fmm",
+					pipeline_.Context().PxToCm((float) pipeline_.Context().MaxTargetsDistPx()) * 10.0f);
 
 				if (ImGui::Button("Back to selecting top target")) {
 					mode_ = AppraiserMode::SelectTopTarget;
@@ -85,25 +89,30 @@ void AppraiserWindow::Update() {
 			CaptureAndProcessCameraFrame(pipeline_);
 
 			camera_view_metrics_ = UpdateCameraView();
-			if (camera_view_metrics_.is_hovered
-				&& (mode_ == AppraiserMode::SelectTopTarget || mode_ == AppraiserMode::SelectBottomTarget)) {
-				ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
-			}
 
-			if (is_ruler_visible_) {
-				ImDrawList* draw = ImGui::GetWindowDrawList();
-				const auto& context = pipeline_.Context();
-				auto mouse_pos = ImGui::GetMousePos();
+			ImDrawList* draw = ImGui::GetWindowDrawList();
+			const auto& context = pipeline_.Context();
+			const ImVec2 mouse_pos = ImGui::GetMousePos();
+
+			if (camera_view_metrics_.is_hovered) {
+				if (mode_ == AppraiserMode::SelectTopTarget || mode_ == AppraiserMode::SelectBottomTarget) {
+					ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+
+					draw->AddCircle(mouse_pos,
+						context.CmToPx(context.target_diameter_cm_ / 2.0f),
+						kTargetValidColor);
+				}
+
+				if (is_ruler_visible_) {
 					DrawRuler(draw,
-						{(float)mouse_pos.x, (float)mouse_pos.y},
+						{mouse_pos.x, mouse_pos.y},
 						context.CmToPx(1.0f),
 						kTargetValidColor,
 						2.0f);
+				}
 			}
 
 			if (mode_ == AppraiserMode::SelectBottomTarget) {
-				ImDrawList* draw = ImGui::GetWindowDrawList();
-				const auto& context = pipeline_.Context();
 				const float target_radius_px = context.CmToPx(context.target_diameter_cm_ / 2.0f);
 
 				auto draw_cluster_indicator = [&](const ClusterResult& cluster) {
@@ -132,8 +141,6 @@ void AppraiserWindow::Update() {
 
 			}
 			if (mode_ == AppraiserMode::Testing) {
-				ImDrawList* draw = ImGui::GetWindowDrawList();
-				const auto& context = pipeline_.Context();
 				const float line_width = OverlayLineWidthPx(pipeline_.Context());
 				const float target_radius_px = context.CmToPx(context.target_diameter_cm_ / 2.0f);
 
@@ -376,7 +383,7 @@ void AppraiserWindow::OnMouseButtonDown(const SDL_MouseButtonEvent& event) {
 	}
 }
 
-void AppraiserWindow::OnMouseButtonUp(const SDL_MouseButtonEvent& event) {
+void AppraiserWindow::OnMouseButtonUp(const SDL_MouseButtonEvent&) {
 
 }
 
