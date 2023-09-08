@@ -2,10 +2,7 @@
 
 #include "app.h"
 #include "app_window.h"
-#include "log.h"
-
 #include "imgui.h"
-
 #include <cassert>
 
 namespace Airheads {
@@ -133,9 +130,9 @@ void DeveloperGui::UpdateConfigContent() {
 		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
 			ImGui::SetTooltip("Display the camera feed as a mirror image?");
 
-//		ImGui::Checkbox("Show Ruler", &appraiser_window_.is_ruler_visible_);
-//		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
-//			ImGui::SetTooltip("Display the ruler overlay on the camera feed?");
+		ImGui::Checkbox("Show Ruler", &appraiser_window_.is_ruler_visible_);
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
+			ImGui::SetTooltip("Display the ruler overlay on the camera feed?");
 
 		ImGui::SliderFloat("pixels/cm", &processor_pipeline_.Context().frame_pixels_per_cm_, 3, 100);
 		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))

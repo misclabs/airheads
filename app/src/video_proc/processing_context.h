@@ -2,14 +2,14 @@
 
 #pragma once
 
-#include "vec.h"
 #include "cluster.h"
+#include "vec.h"
 #include "opencv2/core.hpp"
+#include <cassert>
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
-#include <functional>
-#include <cassert>
 
 namespace Airheads {
 
@@ -53,7 +53,12 @@ public:
 	[[nodiscard]] const ClusterResult& TopTarget() const { return top_target_; }
 	[[nodiscard]] const ClusterResult& BotTarget() const { return bot_target_; }
 	[[nodiscard]] int TargetsDistPx() const { return targets_dist_px_; }
-	[[nodiscard]] int MinTargetsDistPx() const { return min_targets_dist_px_; }
+	[[nodiscard]] int MinTargetsDistPx() const {
+		if (min_targets_dist_px_ == std::numeric_limits<int>::max())
+			return 0;
+
+		return min_targets_dist_px_;
+	}
 	[[nodiscard]] int MaxTargetsDistPx() const { return max_targets_dist_px_; }
 	[[nodiscard]] ClusterResult TopCluster() const { return top_cluster_; }
 	[[nodiscard]] ClusterResult BotCluster() const { return bot_cluster_; }
@@ -67,7 +72,18 @@ public:
 	[[nodiscard]] float CmToPx(float cm) const { return cm * frame_pixels_per_cm_; }
 	[[nodiscard]] float PxToCm(float px) const { return px * 1.0f / frame_pixels_per_cm_; }
 
-	void SetMode(ProcessingMode mode) { mode_ = mode; }
+	void SetMode(ProcessingMode mode) {
+		if (mode == mode_)
+			return;
+
+		if (mode == ProcessingMode::kMeasuring) {
+			targets_dist_px_ = 0;
+			min_targets_dist_px_ = std::numeric_limits<int>::max();
+			max_targets_dist_px_ = 0;
+		}
+
+		mode_ = mode;
+	}
 
 	cv::Mat saturation_map_;
 	cv::Mat value_map_;

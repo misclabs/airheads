@@ -57,6 +57,11 @@ void AppraiserWindow::Update() {
 					mode_ = AppraiserMode::SelectTopTarget;
 				}
 			} else if (mode_ == AppraiserMode::Testing) {
+				ImGui::Text("Intercluster Distance: %.1fmm", pipeline_.Context().PxToCm((float)pipeline_.Context().TargetsDistPx())*10.0f);
+
+				ImGui::Text("Min distance: %.1fmm", pipeline_.Context().PxToCm((float)pipeline_.Context().MinTargetsDistPx())*10.0f);
+				ImGui::Text("Max distance: %.1fmm", pipeline_.Context().PxToCm((float)pipeline_.Context().MaxTargetsDistPx())*10.0f);
+
 				if (ImGui::Button("Back to selecting top target")) {
 					mode_ = AppraiserMode::SelectTopTarget;
 				}
@@ -83,6 +88,17 @@ void AppraiserWindow::Update() {
 			if (camera_view_metrics_.is_hovered
 				&& (mode_ == AppraiserMode::SelectTopTarget || mode_ == AppraiserMode::SelectBottomTarget)) {
 				ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+			}
+
+			if (is_ruler_visible_) {
+				ImDrawList* draw = ImGui::GetWindowDrawList();
+				const auto& context = pipeline_.Context();
+				auto mouse_pos = ImGui::GetMousePos();
+					DrawRuler(draw,
+						{(float)mouse_pos.x, (float)mouse_pos.y},
+						context.CmToPx(1.0f),
+						kTargetValidColor,
+						2.0f);
 			}
 
 			if (mode_ == AppraiserMode::SelectBottomTarget) {
